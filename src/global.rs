@@ -74,19 +74,6 @@ mod tests {
         assert_eq!(process_id, 0);
     }
 
-    #[test]
-    fn test_default_config_status_check() {
-        // Note: Other tests may have already initialized the defaults,
-        // so we can't reliably test the uninitialized state.
-        // Just verify the status functions work
-        let config_set = is_default_config_set();
-        let instance_set = is_default_instance_set();
-
-        // These should be boolean values
-        assert!(config_set == true || config_set == false);
-        assert!(instance_set == true || instance_set == false);
-    }
-
     // Note: We cannot test the actual setting functionality in unit tests
     // because OnceLock can only be set once per program execution.
     // These will be tested in integration tests where each test gets

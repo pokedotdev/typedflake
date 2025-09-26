@@ -27,8 +27,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let user_id = UserId::generate()?;
     let server_id = ServerId::generate()?;
 
-    println!("User ID:  {}", user_id);
-    println!("Server ID: {}", server_id);
+    println!("User ID:  {user_id}");
+    println!("Server ID: {server_id}");
 
     // Show that they use the default instance
     println!(

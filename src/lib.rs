@@ -69,7 +69,7 @@
 //!
 //! // Shared algorithm configuration across services
 //! const SHARED_ALGORITHM: Config = Config::new(
-//!     (42, 10, 4, 8),        // bits: timestamp, worker, process, sequence
+//!     (42, 6, 4, 12),        // bits: timestamp, worker, process, sequence
 //!     1_640_000_000_000,     // 2022 epoch
 //! );
 //!
@@ -356,8 +356,7 @@ mod integration_tests {
                     assert_eq!(
                         ids.len(),
                         sorted_ids.len(),
-                        "Duplicate IDs generated in thread {}",
-                        thread_id
+                        "Duplicate IDs generated in thread {thread_id}"
                     );
 
                     ids
@@ -460,17 +459,14 @@ mod integration_tests {
             // Each instance should start from sequence 0 and increment
             assert_eq!(
                 sequences[0], 0,
-                "Instance ({}, {}) should start with sequence 0",
-                worker_id, process_id
+                "Instance ({worker_id}, {process_id}) should start with sequence 0"
             );
 
             // Sequences should be generally increasing (allowing for potential millisecond resets)
             let max_sequence = *sequences.iter().max().unwrap();
             assert!(
                 max_sequence >= IDS_PER_INSTANCE as u64 / 2,
-                "Instance ({}, {}) should have reasonable sequence progression",
-                worker_id,
-                process_id
+                "Instance ({worker_id}, {process_id}) should have reasonable sequence progression"
             );
         }
     }
@@ -484,7 +480,7 @@ mod integration_tests {
         // Test that the same (worker_id, process_id) from different threads shares state correctly
         const NUM_THREADS: usize = 4;
         const IDS_PER_THREAD: usize = 250;
-        const WORKER_ID: u64 = 42;
+        const WORKER_ID: u64 = 10; // Must fit in 5 bits (max 31)
         const PROCESS_ID: u64 = 7;
 
         let handles: Vec<_> = (0..NUM_THREADS)
