@@ -29,7 +29,7 @@ pub struct Generator {
 
 impl Generator {
     pub fn new(config: Config, worker_id: u64, process_id: u64) -> Self {
-        let state = Arc::new(State::new(config.bits.sequence));
+        let state = Arc::new(State::default());
         Self::new_with_state(config, state, worker_id, process_id)
     }
 
@@ -53,8 +53,9 @@ impl Generator {
 
         // Lock-free compare-and-swap retry loop using injected state
         loop {
-            let current_packed = self.state.packed_state.load(Ordering::Acquire);
-            let (last_timestamp, current_sequence) = self.state.unpack_state(current_packed);
+            let current_packed = self.state.packed.load(Ordering::Acquire);
+            let (last_timestamp, current_sequence) =
+                self.state.unpack_state(current_packed, self.config);
 
             let timestamp = current_timestamp.max(last_timestamp);
 
@@ -67,9 +68,11 @@ impl Generator {
                 (timestamp, 0)
             };
 
-            let new_packed = self.state.pack_state(new_timestamp, new_sequence);
+            let new_packed = self
+                .state
+                .pack_state(new_timestamp, new_sequence, self.config);
 
-            match self.state.packed_state.compare_exchange_weak(
+            match self.state.packed.compare_exchange_weak(
                 current_packed,
                 new_packed,
                 Ordering::Release,
@@ -201,7 +204,7 @@ mod tests {
     #[test]
     fn test_generator_generation() {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-        let state = Arc::new(crate::state::State::new(config.bits.sequence));
+        let state = Arc::new(crate::state::State::default());
         let generator = Generator::new_with_state(config, state, 42, 7);
 
         // Generate IDs
@@ -221,7 +224,7 @@ mod tests {
     #[test]
     fn test_generator_id_components() {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-        let state = Arc::new(crate::state::State::new(config.bits.sequence));
+        let state = Arc::new(crate::state::State::default());
         let generator = Generator::new_with_state(config, state, 99, 3);
 
         let id = generator.generate().unwrap();
@@ -237,7 +240,7 @@ mod tests {
     #[test]
     fn test_generator_decompose_compose() {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-        let state = Arc::new(crate::state::State::new(config.bits.sequence));
+        let state = Arc::new(crate::state::State::default());
         let generator = Generator::new_with_state(config, state, 123, 15);
 
         let id = generator.generate().unwrap();

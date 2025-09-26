@@ -6,10 +6,35 @@ use std::sync::atomic::AtomicU64;
 #[derive(Debug)]
 pub struct State {
     /// Packed state: upper bits = timestamp, lower bits = sequence
-    /// This allows atomic updates of both values together
-    pub packed_state: AtomicU64,
-    /// Number of bits allocated to sequence (for packing/unpacking)
-    sequence_bits: u8,
+    pub packed: AtomicU64,
+}
+
+impl State {
+    pub fn new(packed_state: u64) -> Self {
+        Self {
+            packed: AtomicU64::new(packed_state),
+        }
+    }
+
+    /// Pack timestamp and sequence into single u64
+    pub fn pack_state(&self, timestamp: u64, sequence: u64, config: Config) -> u64 {
+        (timestamp << config.bits.sequence) | (sequence & config.cached.sequence_mask)
+    }
+
+    /// Unpack timestamp and sequence from single u64
+    pub fn unpack_state(&self, packed: u64, config: Config) -> (u64, u64) {
+        let timestamp = packed >> config.bits.sequence;
+        let sequence = packed & config.cached.sequence_mask;
+        (timestamp, sequence)
+    }
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            packed: AtomicU64::new(0),
+        }
+    }
 }
 
 /// Direct state vector with mathematical indexing
@@ -19,30 +44,8 @@ pub struct StateVec {
     config: Config,
 }
 
-impl State {
-    pub fn new(sequence_bits: u8) -> Self {
-        Self {
-            packed_state: AtomicU64::new(0),
-            sequence_bits,
-        }
-    }
-
-    /// Pack timestamp and sequence into single u64
-    pub fn pack_state(&self, timestamp: u64, sequence: u64) -> u64 {
-        (timestamp << self.sequence_bits) | (sequence & ((1u64 << self.sequence_bits) - 1))
-    }
-
-    /// Unpack timestamp and sequence from single u64
-    pub fn unpack_state(&self, packed: u64) -> (u64, u64) {
-        let sequence_mask = (1u64 << self.sequence_bits) - 1;
-        let timestamp = packed >> self.sequence_bits;
-        let sequence = packed & sequence_mask;
-        (timestamp, sequence)
-    }
-}
-
 impl StateVec {
-    /// Create new DirectStateVec with pre-allocated states for all possible (worker_id, process_id) combinations
+    /// Create with pre-allocated states for all possible (worker_id, process_id) combinations
     pub fn new(config: Config) -> Self {
         // Calculate total size based on bit allocation
         let max_workers = config.cached.max_worker_id + 1;
@@ -51,7 +54,7 @@ impl StateVec {
 
         Self {
             states: (0..total_size)
-                .map(|_| Arc::new(State::new(config.bits.sequence)))
+                .map(|_| Arc::new(State::default()))
                 .collect(),
             config,
         }
