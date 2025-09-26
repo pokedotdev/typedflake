@@ -48,8 +48,8 @@ impl StateVec {
     /// Create with pre-allocated states for all possible (worker_id, process_id) combinations
     pub fn new(config: Config) -> Self {
         // Calculate total size based on bit allocation
-        let max_workers = config.cached.max_worker_id + 1;
-        let max_processes = config.cached.max_process_id + 1;
+        let max_workers = config.cached.worker_mask + 1;
+        let max_processes = config.cached.process_mask + 1;
         let total_size = (max_workers * max_processes) as usize;
 
         Self {

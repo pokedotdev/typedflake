@@ -31,7 +31,7 @@ impl BitAllocation {
 
 impl Default for BitAllocation {
     fn default() -> Self {
-        BitAllocation::new(42, 5, 5, 12)
+        Config::DEFAULT_BITS
     }
 }
 
@@ -58,10 +58,6 @@ pub struct CachedValues {
     pub worker_mask: u64,
     pub process_mask: u64,
     pub sequence_mask: u64,
-
-    pub max_sequence: u64,
-    pub max_worker_id: u64,
-    pub max_process_id: u64,
 }
 
 /// Configuration - contains bit allocation and epoch (compile-time only)
@@ -101,11 +97,6 @@ impl Config {
         };
         let timestamp_mask = (1u64 << bits.timestamp) - 1;
 
-        // Calculate maximum values
-        let max_sequence = sequence_mask;
-        let max_worker_id = worker_mask;
-        let max_process_id = process_mask;
-
         Config {
             bits,
             epoch_ms,
@@ -118,9 +109,6 @@ impl Config {
                 worker_mask,
                 process_mask,
                 sequence_mask,
-                max_sequence,
-                max_worker_id,
-                max_process_id,
             },
         }
     }
@@ -135,16 +123,16 @@ impl Config {
 
     /// Validate worker_id/process_id against bit limits
     pub fn validate_instance(&self, worker_id: u64, process_id: u64) -> Result<(), String> {
-        if worker_id > self.cached.max_worker_id {
+        if worker_id > self.cached.worker_mask {
             return Err(format!(
                 "Worker ID {} exceeds maximum {}",
-                worker_id, self.cached.max_worker_id
+                worker_id, self.cached.worker_mask
             ));
         }
-        if process_id > self.cached.max_process_id {
+        if process_id > self.cached.process_mask {
             return Err(format!(
                 "Process ID {} exceeds maximum {}",
-                process_id, self.cached.max_process_id
+                process_id, self.cached.process_mask
             ));
         }
         Ok(())
@@ -186,9 +174,9 @@ mod tests {
         assert_eq!(config.epoch_ms, 1_600_000_000_000);
 
         // Check cached values are calculated correctly
-        assert_eq!(config.cached.max_worker_id, (1u64 << 10) - 1); // 1023
-        assert_eq!(config.cached.max_process_id, (1u64 << 5) - 1); // 31
-        assert_eq!(config.cached.max_sequence, (1u64 << 7) - 1); // 127
+        assert_eq!(config.cached.worker_mask, (1u64 << 10) - 1); // 1023
+        assert_eq!(config.cached.process_mask, (1u64 << 5) - 1); // 31
+        assert_eq!(config.cached.sequence_mask, (1u64 << 7) - 1); // 127
     }
 
     #[test]
@@ -199,7 +187,6 @@ mod tests {
         );
 
         assert_eq!(config.bits.process, 0);
-        assert_eq!(config.cached.max_process_id, 0);
         assert_eq!(config.cached.process_mask, 0);
     }
 

@@ -93,11 +93,6 @@ macro_rules! typedflake_id {
 		            let (worker_id, _) = $crate::global::get_default_instance();
 	                Self::instance(worker_id, process_id)
 	            }
-
-	            /// Create default Generator (worker_id=0, process_id=0)
-	            pub fn default_instance() -> [<$name Generator>] {
-	                Self::instance(0, 0)
-	            }
 	        }
 
 	        impl $name {
@@ -402,69 +397,5 @@ mod tests {
 
         // IDs should be different
         assert_ne!(id1, id2);
-    }
-
-    #[test]
-    fn test_factory_convenience_methods() {
-        const CONVENIENCE_ALGORITHM: Config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-
-        crate::id!(ConvenienceTestId, CONVENIENCE_ALGORITHM);
-
-        // Test worker convenience method
-        let worker_gen = ConvenienceTestId::worker(42);
-        assert_eq!(worker_gen.worker_id(), 42);
-        assert_eq!(worker_gen.process_id(), 0);
-
-        let worker_id = worker_gen.generate().unwrap();
-        let worker_components = worker_id.components();
-        assert_eq!(worker_components.worker_id, 42);
-        assert_eq!(worker_components.process_id, 0);
-
-        // Test process convenience method
-        let process_gen = ConvenienceTestId::process(7);
-        assert_eq!(process_gen.worker_id(), 0);
-        assert_eq!(process_gen.process_id(), 7);
-
-        let process_id = process_gen.generate().unwrap();
-        let process_components = process_id.components();
-        assert_eq!(process_components.worker_id, 0);
-        assert_eq!(process_components.process_id, 7);
-
-        // Test default convenience method
-        let default_gen = ConvenienceTestId::default_instance();
-        assert_eq!(default_gen.worker_id(), 0);
-        assert_eq!(default_gen.process_id(), 0);
-
-        let default_id = default_gen.generate().unwrap();
-        let default_components = default_id.components();
-        assert_eq!(default_components.worker_id, 0);
-        assert_eq!(default_components.process_id, 0);
-    }
-
-    #[test]
-    fn test_factory_vs_traditional_generators() {
-        const COMPARISON_ALGORITHM: Config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-
-        crate::id!(ComparisonId, COMPARISON_ALGORITHM);
-
-        // Traditional InstancedGenerator
-        let traditional = ComparisonId::instance(1, 2);
-        let traditional_id = traditional.generate().unwrap();
-
-        // Factory-based Generator
-        let stateful = ComparisonId::instance(1, 2);
-        let stateful_id = stateful.generate().unwrap();
-
-        // Both should produce valid IDs with same worker/process
-        let trad_components = traditional_id.components();
-        let state_components = stateful_id.components();
-
-        assert_eq!(trad_components.worker_id, 1);
-        assert_eq!(trad_components.process_id, 2);
-        assert_eq!(state_components.worker_id, 1);
-        assert_eq!(state_components.process_id, 2);
-
-        // IDs should be different (different sequences)
-        assert_ne!(traditional_id, stateful_id);
     }
 }

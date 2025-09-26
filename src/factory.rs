@@ -23,21 +23,6 @@ impl GeneratorFactory {
 
         Generator::new_with_state(self.config, state, worker_id, process_id)
     }
-
-    /// Convenience method: create generator for worker_id with process_id = 0
-    pub fn create_worker_generator(&self, worker_id: u64) -> Generator {
-        self.create_generator(worker_id, 0)
-    }
-
-    /// Convenience method: create generator for process_id with worker_id = 0
-    pub fn create_process_generator(&self, process_id: u64) -> Generator {
-        self.create_generator(0, process_id)
-    }
-
-    /// Create default generator (worker_id=0, process_id=0)
-    pub fn create_default_generator(&self) -> Generator {
-        self.create_generator(0, 0)
-    }
 }
 
 #[cfg(test)]
@@ -78,23 +63,6 @@ mod tests {
         assert_ne!(id1, id2);
         assert!(id1 > 0);
         assert!(id2 > 0);
-    }
-
-    #[test]
-    fn test_factory_convenience_methods() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-        let factory = GeneratorFactory::new(config);
-
-        let worker_gen = factory.create_worker_generator(99);
-        let process_gen = factory.create_process_generator(3);
-        let default_gen = factory.create_default_generator();
-
-        assert_eq!(worker_gen.worker_id(), 99);
-        assert_eq!(worker_gen.process_id(), 0);
-        assert_eq!(process_gen.worker_id(), 0);
-        assert_eq!(process_gen.process_id(), 3);
-        assert_eq!(default_gen.worker_id(), 0);
-        assert_eq!(default_gen.process_id(), 0);
     }
 
     // #[test]

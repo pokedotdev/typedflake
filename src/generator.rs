@@ -60,7 +60,7 @@ impl Generator {
             let timestamp = current_timestamp.max(last_timestamp);
 
             let (new_timestamp, new_sequence) = if timestamp == last_timestamp {
-                if current_sequence >= self.config.cached.max_sequence {
+                if current_sequence >= self.config.cached.sequence_mask {
                     return Err(GeneratorError::SequenceExhausted { timestamp });
                 }
                 (timestamp, current_sequence + 1)
@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(components.worker_id, 99);
         assert_eq!(components.process_id, 3);
         assert!(components.timestamp > 0);
-        assert!(components.sequence < config.cached.max_sequence);
+        assert!(components.sequence < config.cached.sequence_mask);
     }
 
     #[test]
