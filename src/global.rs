@@ -31,7 +31,7 @@ pub fn set_default_instance(worker_id: u64, process_id: u64) -> Result<(), Defau
 
 /// Get the default configuration, initializing with hardcoded default if not set
 pub fn get_default_config() -> Config {
-    *DEFAULT_CONFIG.get().unwrap_or(&Config::default())
+    *DEFAULT_CONFIG.get_or_init(Config::default)
 }
 
 /// Get the default instance, initializing with (0, 0) if not set
