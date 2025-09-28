@@ -111,7 +111,6 @@
 //! ```
 
 pub mod config;
-pub mod factory;
 pub mod generator;
 pub mod global;
 pub mod manager;
@@ -122,7 +121,6 @@ mod macros; // Keep macros private, they're exported via the macro itself
 
 // Re-export main types and the macro
 pub use config::Config;
-pub use factory::GeneratorFactory;
 pub use generator::{Generator, GeneratorError, IdComponents};
 pub use manager::IdManager;
 
@@ -393,8 +391,8 @@ mod integration_tests {
         let hardcoded_default = Config::default();
 
         assert_eq!(
-            default_config.bits.timestamp,
-            hardcoded_default.bits.timestamp
+            default_config.timestamp_bits,
+            hardcoded_default.timestamp_bits
         );
         assert_eq!(default_config.epoch_ms, hardcoded_default.epoch_ms);
 

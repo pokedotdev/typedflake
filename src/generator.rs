@@ -60,7 +60,7 @@ impl Generator {
             let timestamp = current_timestamp.max(last_timestamp);
 
             let (new_timestamp, new_sequence) = if timestamp == last_timestamp {
-                if current_sequence >= self.config.cached.sequence_mask {
+                if current_sequence >= self.config.sequence_mask {
                     return Err(GeneratorError::SequenceExhausted { timestamp });
                 }
                 (timestamp, current_sequence + 1)
@@ -103,15 +103,15 @@ impl Generator {
     /// Compose ID using injected worker_id and process_id
     #[inline]
     fn compose_id(&self, timestamp: u64, sequence: u64) -> u64 {
-        let masked_timestamp = timestamp & self.config.cached.timestamp_mask;
-        let masked_worker = self.worker_id & self.config.cached.worker_mask;
-        let masked_process = self.process_id & self.config.cached.process_mask;
-        let masked_sequence = sequence & self.config.cached.sequence_mask;
+        let masked_timestamp = timestamp & self.config.timestamp_mask;
+        let masked_worker = self.worker_id & self.config.worker_mask;
+        let masked_process = self.process_id & self.config.process_mask;
+        let masked_sequence = sequence & self.config.sequence_mask;
 
-        (masked_timestamp << self.config.cached.timestamp_shift)
-            | (masked_worker << self.config.cached.worker_shift)
-            | (masked_process << self.config.cached.process_shift)
-            | (masked_sequence << self.config.cached.sequence_shift)
+        (masked_timestamp << self.config.timestamp_shift)
+            | (masked_worker << self.config.worker_shift)
+            | (masked_process << self.config.process_shift)
+            | (masked_sequence << self.config.sequence_shift)
     }
 
     /// Helper method for waiting until next millisecond
@@ -158,22 +158,22 @@ impl Generator {
 
     /// Extract just the timestamp component from an ID
     pub fn extract_timestamp(&self, id: u64) -> u64 {
-        (id >> self.config.cached.timestamp_shift) & self.config.cached.timestamp_mask
+        (id >> self.config.timestamp_shift) & self.config.timestamp_mask
     }
 
     /// Extract just the worker ID component from an ID
     pub fn extract_worker_id(&self, id: u64) -> u64 {
-        (id >> self.config.cached.worker_shift) & self.config.cached.worker_mask
+        (id >> self.config.worker_shift) & self.config.worker_mask
     }
 
     /// Extract just the process ID component from an ID
     pub fn extract_process_id(&self, id: u64) -> u64 {
-        (id >> self.config.cached.process_shift) & self.config.cached.process_mask
+        (id >> self.config.process_shift) & self.config.process_mask
     }
 
     /// Extract just the sequence component from an ID
     pub fn extract_sequence(&self, id: u64) -> u64 {
-        (id >> self.config.cached.sequence_shift) & self.config.cached.sequence_mask
+        (id >> self.config.sequence_shift) & self.config.sequence_mask
     }
 
     /// Compose an ID from individual components
@@ -184,15 +184,15 @@ impl Generator {
         process_id: u64,
         sequence: u64,
     ) -> u64 {
-        let masked_timestamp = timestamp & self.config.cached.timestamp_mask;
-        let masked_worker = worker_id & self.config.cached.worker_mask;
-        let masked_process = process_id & self.config.cached.process_mask;
-        let masked_sequence = sequence & self.config.cached.sequence_mask;
+        let masked_timestamp = timestamp & self.config.timestamp_mask;
+        let masked_worker = worker_id & self.config.worker_mask;
+        let masked_process = process_id & self.config.process_mask;
+        let masked_sequence = sequence & self.config.sequence_mask;
 
-        (masked_timestamp << self.config.cached.timestamp_shift)
-            | (masked_worker << self.config.cached.worker_shift)
-            | (masked_process << self.config.cached.process_shift)
-            | (masked_sequence << self.config.cached.sequence_shift)
+        (masked_timestamp << self.config.timestamp_shift)
+            | (masked_worker << self.config.worker_shift)
+            | (masked_process << self.config.process_shift)
+            | (masked_sequence << self.config.sequence_shift)
     }
 }
 
@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(components.worker_id, 99);
         assert_eq!(components.process_id, 3);
         assert!(components.timestamp > 0);
-        assert!(components.sequence < config.cached.sequence_mask);
+        assert!(components.sequence < config.sequence_mask);
     }
 
     #[test]

@@ -3,113 +3,86 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// (timestamp_bits, worker_bits, process_bits, sequence_bits)
 type TupleBitAllocation = (u8, u8, u8, u8);
 
+/// Configuration - contains bit allocation, epoch, and pre-calculated values for performance
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BitAllocation {
-    pub timestamp: u8,
-    pub worker: u8,
-    pub process: u8,
-    pub sequence: u8,
-}
+pub struct Config {
+    // Bit allocation
+    pub timestamp_bits: u8,
+    pub worker_bits: u8,
+    pub process_bits: u8,
+    pub sequence_bits: u8,
 
-impl BitAllocation {
-    pub const fn new(timestamp: u8, worker: u8, process: u8, sequence: u8) -> Self {
-        assert!(
-            timestamp + worker + process + sequence == 64,
-            "Bit configuration must sum to 64"
-        );
-        assert!(timestamp > 0, "Timestamp bits must be > 0");
-        assert!(sequence > 0, "Sequence bits must be > 0");
+    // Epoch
+    pub epoch_ms: u64,
 
-        BitAllocation {
-            timestamp,
-            worker,
-            process,
-            sequence,
-        }
-    }
-}
-
-impl Default for BitAllocation {
-    fn default() -> Self {
-        Config::DEFAULT_BITS
-    }
-}
-
-impl From<TupleBitAllocation> for BitAllocation {
-    fn from(bits: TupleBitAllocation) -> Self {
-        BitAllocation::new(bits.0, bits.1, bits.2, bits.3)
-    }
-}
-
-impl From<BitAllocation> for TupleBitAllocation {
-    fn from(bits: BitAllocation) -> Self {
-        (bits.timestamp, bits.worker, bits.process, bits.sequence)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CachedValues {
+    // Pre-calculated shifts for performance
     pub timestamp_shift: u8,
     pub worker_shift: u8,
     pub process_shift: u8,
     pub sequence_shift: u8,
 
+    // Pre-calculated masks for performance
     pub timestamp_mask: u64,
     pub worker_mask: u64,
     pub process_mask: u64,
     pub sequence_mask: u64,
 }
 
-/// Configuration - contains bit allocation and epoch (compile-time only)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Config {
-    pub bits: BitAllocation,
-    pub epoch_ms: u64,
-    pub cached: CachedValues,
-}
-
 impl Config {
-    /// Default bit allocation configuration
-    pub const DEFAULT_BITS: BitAllocation = BitAllocation::new(42, 5, 5, 12);
+    /// Default bit allocation configuration: (42, 5, 5, 12)
+    pub const DEFAULT_TIMESTAMP_BITS: u8 = 42;
+    pub const DEFAULT_WORKER_BITS: u8 = 5;
+    pub const DEFAULT_PROCESS_BITS: u8 = 5;
+    pub const DEFAULT_SEQUENCE_BITS: u8 = 12;
+
     /// Default epoch in milliseconds
     pub const DEFAULT_EPOCH_MS: u64 = 1735689600000; // ISO-8601 2025-01-01T00:00:00.000Z
 
     pub const fn new(bits: TupleBitAllocation, epoch_ms: u64) -> Self {
-        let bits = BitAllocation::new(bits.0, bits.1, bits.2, bits.3);
+        let (timestamp_bits, worker_bits, process_bits, sequence_bits) = bits;
+
+        // Validation
+        assert!(
+            timestamp_bits + worker_bits + process_bits + sequence_bits == 64,
+            "Bit configuration must sum to 64"
+        );
+        assert!(timestamp_bits > 0, "Timestamp bits must be > 0");
+        assert!(sequence_bits > 0, "Sequence bits must be > 0");
 
         // Calculate shifts
         let sequence_shift = 0;
-        let process_shift = bits.sequence;
-        let worker_shift = bits.sequence + bits.process;
-        let timestamp_shift = worker_shift + bits.worker;
+        let process_shift = sequence_bits;
+        let worker_shift = sequence_bits + process_bits;
+        let timestamp_shift = worker_shift + worker_bits;
 
         // Calculate masks
-        let sequence_mask = (1u64 << bits.sequence) - 1;
-        let process_mask = if bits.sequence == 0 {
+        let sequence_mask = (1u64 << sequence_bits) - 1;
+        let process_mask = if process_bits == 0 {
             0
         } else {
-            (1u64 << bits.process) - 1
+            (1u64 << process_bits) - 1
         };
-        let worker_mask = if bits.sequence == 0 {
+        let worker_mask = if worker_bits == 0 {
             0
         } else {
-            (1u64 << bits.worker) - 1
+            (1u64 << worker_bits) - 1
         };
-        let timestamp_mask = (1u64 << bits.timestamp) - 1;
+        let timestamp_mask = (1u64 << timestamp_bits) - 1;
 
         Config {
-            bits,
+            timestamp_bits,
+            worker_bits,
+            process_bits,
+            sequence_bits,
             epoch_ms,
-            cached: CachedValues {
-                timestamp_shift,
-                worker_shift,
-                process_shift,
-                sequence_shift,
-                timestamp_mask,
-                worker_mask,
-                process_mask,
-                sequence_mask,
-            },
+            timestamp_shift,
+            worker_shift,
+            process_shift,
+            sequence_shift,
+            timestamp_mask,
+            worker_mask,
+            process_mask,
+            sequence_mask,
         }
     }
 
@@ -123,16 +96,16 @@ impl Config {
 
     /// Validate worker_id/process_id against bit limits
     pub fn validate_instance(&self, worker_id: u64, process_id: u64) -> Result<(), String> {
-        if worker_id > self.cached.worker_mask {
+        if worker_id > self.worker_mask {
             return Err(format!(
                 "Worker ID {} exceeds maximum {}",
-                worker_id, self.cached.worker_mask
+                worker_id, self.worker_mask
             ));
         }
-        if process_id > self.cached.process_mask {
+        if process_id > self.process_mask {
             return Err(format!(
                 "Process ID {} exceeds maximum {}",
-                process_id, self.cached.process_mask
+                process_id, self.process_mask
             ));
         }
         Ok(())
@@ -141,7 +114,15 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(Self::DEFAULT_BITS.into(), Self::DEFAULT_EPOCH_MS)
+        Self::new(
+            (
+                Self::DEFAULT_TIMESTAMP_BITS,
+                Self::DEFAULT_WORKER_BITS,
+                Self::DEFAULT_PROCESS_BITS,
+                Self::DEFAULT_SEQUENCE_BITS,
+            ),
+            Self::DEFAULT_EPOCH_MS,
+        )
     }
 }
 
@@ -153,11 +134,11 @@ mod tests {
     fn test_algorithm_config_default() {
         let config = Config::default();
         assert_eq!(
-            config.bits.timestamp + config.bits.worker + config.bits.process + config.bits.sequence,
+            config.timestamp_bits + config.worker_bits + config.process_bits + config.sequence_bits,
             64
         );
-        assert!(config.bits.timestamp > 0);
-        assert!(config.bits.sequence > 0);
+        assert!(config.timestamp_bits > 0);
+        assert!(config.sequence_bits > 0);
     }
 
     #[test]
@@ -167,16 +148,16 @@ mod tests {
             1_600_000_000_000,
         );
 
-        assert_eq!(config.bits.timestamp, 42);
-        assert_eq!(config.bits.worker, 10);
-        assert_eq!(config.bits.process, 5);
-        assert_eq!(config.bits.sequence, 7);
+        assert_eq!(config.timestamp_bits, 42);
+        assert_eq!(config.worker_bits, 10);
+        assert_eq!(config.process_bits, 5);
+        assert_eq!(config.sequence_bits, 7);
         assert_eq!(config.epoch_ms, 1_600_000_000_000);
 
         // Check cached values are calculated correctly
-        assert_eq!(config.cached.worker_mask, (1u64 << 10) - 1); // 1023
-        assert_eq!(config.cached.process_mask, (1u64 << 5) - 1); // 31
-        assert_eq!(config.cached.sequence_mask, (1u64 << 7) - 1); // 127
+        assert_eq!(config.worker_mask, (1u64 << 10) - 1); // 1023
+        assert_eq!(config.process_mask, (1u64 << 5) - 1); // 31
+        assert_eq!(config.sequence_mask, (1u64 << 7) - 1); // 127
     }
 
     #[test]
@@ -186,8 +167,8 @@ mod tests {
             Config::DEFAULT_EPOCH_MS,
         );
 
-        assert_eq!(config.bits.process, 0);
-        assert_eq!(config.cached.process_mask, 0);
+        assert_eq!(config.process_bits, 0);
+        assert_eq!(config.process_mask, 0);
     }
 
     #[test]
@@ -213,10 +194,10 @@ mod tests {
     fn test_legacy_config_default() {
         let config = Config::default();
         assert_eq!(
-            config.bits.timestamp + config.bits.worker + config.bits.process + config.bits.sequence,
+            config.timestamp_bits + config.worker_bits + config.process_bits + config.sequence_bits,
             64
         );
-        assert!(config.bits.timestamp > 0);
-        assert!(config.bits.sequence > 0);
+        assert!(config.timestamp_bits > 0);
+        assert!(config.sequence_bits > 0);
     }
 }
