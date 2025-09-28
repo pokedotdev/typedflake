@@ -114,7 +114,9 @@ pub mod config;
 pub mod factory;
 pub mod generator;
 pub mod global;
+pub mod manager;
 pub mod state;
+pub mod traits;
 
 mod macros; // Keep macros private, they're exported via the macro itself
 
@@ -122,6 +124,7 @@ mod macros; // Keep macros private, they're exported via the macro itself
 pub use config::Config;
 pub use factory::GeneratorFactory;
 pub use generator::{Generator, GeneratorError, IdComponents};
+pub use manager::IdManager;
 
 #[cfg(test)]
 mod integration_tests {
