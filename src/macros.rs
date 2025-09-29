@@ -59,21 +59,21 @@ macro_rules! id {
                 }
 
                 /// Create a typed generator wrapper with specific worker_id and process_id
-                pub fn instance(worker_id: u64, process_id: u64) -> [<$name Generator>] {
-                    let inner = Self::manager().create_generator(worker_id, process_id);
-                    [<$name Generator>] { inner }
+                pub fn instance(worker_id: u64, process_id: u64) -> Result<[<$name Generator>], $crate::config::ValidationError> {
+                    let inner = Self::manager().create_generator(worker_id, process_id)?;
+                    Ok([<$name Generator>] { inner })
                 }
 
                 /// Create a typed generator wrapper with specific worker_id and default process_id
-                pub fn worker(worker_id: u64) -> [<$name Generator>] {
-                    let inner = Self::manager().create_worker(worker_id);
-                    [<$name Generator>] { inner }
+                pub fn worker(worker_id: u64) -> Result<[<$name Generator>], $crate::config::ValidationError> {
+                    let inner = Self::manager().create_worker(worker_id)?;
+                    Ok([<$name Generator>] { inner })
                 }
 
                 /// Create a typed generator wrapper with default worker_id and specific process_id
-                pub fn process(process_id: u64) -> [<$name Generator>] {
-                    let inner = Self::manager().create_process(process_id);
-                    [<$name Generator>] { inner }
+                pub fn process(process_id: u64) -> Result<[<$name Generator>], $crate::config::ValidationError> {
+                    let inner = Self::manager().create_process(process_id)?;
+                    Ok([<$name Generator>] { inner })
                 }
 
                 /// Decompose the ID into its components as a tuple
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(components.process_id, 0);
 
         // Test specific instance
-        let instance = AlgorithmId::instance(99, 3);
+        let instance = AlgorithmId::instance(99, 3).unwrap();
         let instance_id = instance.generate().unwrap();
         let instance_components = instance_id.components();
 
@@ -271,21 +271,21 @@ mod tests {
         crate::id!(InstanceMethodId, CUSTOM_ALGORITHM);
 
         // Test worker method
-        let worker_instance = InstanceMethodId::worker(99);
+        let worker_instance = InstanceMethodId::worker(99).unwrap();
         let worker_id = worker_instance.generate().unwrap();
         let worker_components = worker_id.components();
         assert_eq!(worker_components.worker_id, 99);
         assert_eq!(worker_components.process_id, 0);
 
         // Test process method
-        let process_instance = InstanceMethodId::process(3);
+        let process_instance = InstanceMethodId::process(3).unwrap();
         let process_id = process_instance.generate().unwrap();
         let process_components = process_id.components();
         assert_eq!(process_components.worker_id, 0);
         assert_eq!(process_components.process_id, 3);
 
         // Test instance method
-        let full_instance = InstanceMethodId::instance(99, 3);
+        let full_instance = InstanceMethodId::instance(99, 3).unwrap();
         let full_id = full_instance.generate().unwrap();
         let full_components = full_id.components();
         assert_eq!(full_components.worker_id, 99);
@@ -299,8 +299,8 @@ mod tests {
         crate::id!(MultiInstanceId, SHARED_ALGORITHM);
 
         // Test that different instances work independently
-        let instance1 = MultiInstanceId::instance(42, 7);
-        let instance2 = MultiInstanceId::instance(1, 2);
+        let instance1 = MultiInstanceId::instance(42, 7).unwrap();
+        let instance2 = MultiInstanceId::instance(1, 2).unwrap();
 
         // Generate IDs from both instances
         let id1 = instance1.generate().unwrap();
@@ -322,7 +322,7 @@ mod tests {
         crate::id!(FactoryTestId, FACTORY_ALGORITHM);
 
         // Test Generator creation and usage
-        let stateful_gen = FactoryTestId::instance(99, 3);
+        let stateful_gen = FactoryTestId::instance(99, 3).unwrap();
 
         // Verify bound worker and process IDs
         assert_eq!(stateful_gen.worker_id(), 99);

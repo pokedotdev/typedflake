@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, ValidationError};
 use crate::state::State;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -6,8 +6,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum GeneratorError {
-    #[error("Sequence overflowed for timestamp {timestamp}")]
-    SequenceExhausted { timestamp: u64 },
+    #[error("Sequence exhausted for timestamp {timestamp} on worker_id={worker_id}, process_id={process_id}")]
+    SequenceExhausted {
+        timestamp: u64,
+        worker_id: u64,
+        process_id: u64,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -28,7 +32,7 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new(config: Config, worker_id: u64, process_id: u64) -> Self {
+    pub fn new(config: Config, worker_id: u64, process_id: u64) -> Result<Self, ValidationError> {
         let state = Arc::new(State::default());
         Self::new_with_state(config, state, worker_id, process_id)
     }
@@ -38,13 +42,14 @@ impl Generator {
         state: Arc<State>,
         worker_id: u64,
         process_id: u64,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, ValidationError> {
+        config.validate_instance(worker_id, process_id)?;
+        Ok(Self {
             config,
             state,
             worker_id,
             process_id,
-        }
+        })
     }
 
     /// Generate ID with direct state access
@@ -61,7 +66,11 @@ impl Generator {
 
             let (new_timestamp, new_sequence) = if timestamp == last_timestamp {
                 if current_sequence >= self.config.sequence_mask {
-                    return Err(GeneratorError::SequenceExhausted { timestamp });
+                    return Err(GeneratorError::SequenceExhausted {
+                        timestamp,
+                        worker_id: self.worker_id,
+                        process_id: self.process_id,
+                    });
                 }
                 (timestamp, current_sequence + 1)
             } else {
@@ -205,7 +214,7 @@ mod tests {
     fn test_generator_generation() {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
         let state = Arc::new(crate::state::State::default());
-        let generator = Generator::new_with_state(config, state, 42, 7);
+        let generator = Generator::new_with_state(config, state, 42, 7).unwrap();
 
         // Generate IDs
         let id1 = generator.generate().unwrap();
@@ -225,7 +234,7 @@ mod tests {
     fn test_generator_id_components() {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
         let state = Arc::new(crate::state::State::default());
-        let generator = Generator::new_with_state(config, state, 99, 3);
+        let generator = Generator::new_with_state(config, state, 99, 3).unwrap();
 
         let id = generator.generate().unwrap();
         let components = generator.components(id);
@@ -241,7 +250,7 @@ mod tests {
     fn test_generator_decompose_compose() {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
         let state = Arc::new(crate::state::State::default());
-        let generator = Generator::new_with_state(config, state, 123, 15);
+        let generator = Generator::new_with_state(config, state, 123, 15).unwrap();
 
         let id = generator.generate().unwrap();
         let (timestamp, worker_id, process_id, sequence) = generator.decompose(id);

@@ -1,7 +1,25 @@
 use std::time::{SystemTime, UNIX_EPOCH};
+use thiserror::Error;
 
 /// (timestamp_bits, worker_bits, process_bits, sequence_bits)
 type TupleBitAllocation = (u8, u8, u8, u8);
+
+/// Validation error for worker_id and process_id bounds checking
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum ValidationError {
+    #[error("Worker ID {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    WorkerIdOutOfRange {
+        provided: u64,
+        maximum: u64,
+        bits: u8,
+    },
+    #[error("Process ID {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    ProcessIdOutOfRange {
+        provided: u64,
+        maximum: u64,
+        bits: u8,
+    },
+}
 
 /// Configuration - contains bit allocation, epoch, and pre-calculated values for performance
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,18 +113,20 @@ impl Config {
     }
 
     /// Validate worker_id/process_id against bit limits
-    pub fn validate_instance(&self, worker_id: u64, process_id: u64) -> Result<(), String> {
+    pub fn validate_instance(&self, worker_id: u64, process_id: u64) -> Result<(), ValidationError> {
         if worker_id > self.worker_mask {
-            return Err(format!(
-                "Worker ID {} exceeds maximum {}",
-                worker_id, self.worker_mask
-            ));
+            return Err(ValidationError::WorkerIdOutOfRange {
+                provided: worker_id,
+                maximum: self.worker_mask,
+                bits: self.worker_bits,
+            });
         }
         if process_id > self.process_mask {
-            return Err(format!(
-                "Process ID {} exceeds maximum {}",
-                process_id, self.process_mask
-            ));
+            return Err(ValidationError::ProcessIdOutOfRange {
+                provided: process_id,
+                maximum: self.process_mask,
+                bits: self.process_bits,
+            });
         }
         Ok(())
     }

@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, ValidationError};
 use crate::generator::Generator;
 use crate::global;
 use crate::state::StateVec;
@@ -27,11 +27,12 @@ impl IdManager {
         self.default_generator.get_or_init(|| {
             let (worker_id, process_id) = global::get_default_instance();
             self.create_generator(worker_id, process_id)
+                .expect("Default instance (0, 0) should always be valid")
         })
     }
 
     /// Create generator with specific worker_id and process_id
-    pub fn create_generator(&self, worker_id: u64, process_id: u64) -> Generator {
+    pub fn create_generator(&self, worker_id: u64, process_id: u64) -> Result<Generator, ValidationError> {
         // Get pre-allocated state (no lookup overhead)
         let state = self.states.get_state(worker_id, process_id).clone();
 
@@ -39,13 +40,13 @@ impl IdManager {
     }
 
     /// Create generator with specific worker_id and default process_id
-    pub fn create_worker(&self, worker_id: u64) -> Generator {
+    pub fn create_worker(&self, worker_id: u64) -> Result<Generator, ValidationError> {
         let (_, process_id) = global::get_default_instance();
         self.create_generator(worker_id, process_id)
     }
 
     /// Create generator with default worker_id and specific process_id
-    pub fn create_process(&self, process_id: u64) -> Generator {
+    pub fn create_process(&self, process_id: u64) -> Result<Generator, ValidationError> {
         let (worker_id, _) = global::get_default_instance();
         self.create_generator(worker_id, process_id)
     }
@@ -62,9 +63,9 @@ mod tests {
         let manager = IdManager::new(config);
 
         // Create different generators
-        let gen1 = manager.create_generator(0, 0);
-        let gen2 = manager.create_generator(1, 0);
-        let gen3 = manager.create_generator(0, 1);
+        let gen1 = manager.create_generator(0, 0).unwrap();
+        let gen2 = manager.create_generator(1, 0).unwrap();
+        let gen3 = manager.create_generator(0, 1).unwrap();
 
         // Verify they have different worker/process IDs
         assert_eq!(gen1.worker_id(), 0);
@@ -79,7 +80,7 @@ mod tests {
     fn test_manager_generation() {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
         let manager = IdManager::new(config);
-        let generator = manager.create_generator(42, 7);
+        let generator = manager.create_generator(42, 7).unwrap();
 
         // Generate IDs
         let id1 = generator.generate().unwrap();
@@ -111,8 +112,8 @@ mod tests {
         let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
         let manager = IdManager::new(config);
 
-        let worker_gen = manager.create_worker(42);
-        let process_gen = manager.create_process(7);
+        let worker_gen = manager.create_worker(42).unwrap();
+        let process_gen = manager.create_process(7).unwrap();
 
         assert_eq!(worker_gen.worker_id(), 42);
         assert_eq!(worker_gen.process_id(), 0); // default

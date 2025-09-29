@@ -27,7 +27,7 @@
 //! println!("Generated user ID: {}", user_id);
 //!
 //! // Generate with specific instance
-//! let user_instance = UserId::instance(42, 7);
+//! let user_instance = UserId::instance(15, 7).unwrap();
 //! let custom_id = user_instance.generate().unwrap();
 //!
 //! // Access components
@@ -78,8 +78,8 @@
 //! typedflake::id!(PaymentServiceId, SHARED_ALGORITHM);
 //!
 //! // Generate IDs with dynamic instances
-//! let auth_instance = AuthServiceId::instance(1, 0);
-//! let payment_instance = PaymentServiceId::instance(2, 1);
+//! let auth_instance = AuthServiceId::instance(1, 0).unwrap();
+//! let payment_instance = PaymentServiceId::instance(2, 1).unwrap();
 //!
 //! let auth_id = auth_instance.generate().unwrap();
 //! let payment_id = payment_instance.generate().unwrap();
@@ -120,7 +120,7 @@ pub mod traits;
 mod macros; // Keep macros private, they're exported via the macro itself
 
 // Re-export main types and the macro
-pub use config::Config;
+pub use config::{Config, ValidationError};
 pub use generator::{Generator, GeneratorError, IdComponents};
 pub use manager::IdManager;
 
@@ -158,8 +158,8 @@ mod integration_tests {
         assert_eq!(components2.process_id, 0);
 
         // Test custom instances
-        let instance1 = IdType1::instance(1, 1);
-        let instance2 = IdType2::instance(2, 2);
+        let instance1 = IdType1::instance(1, 1).unwrap();
+        let instance2 = IdType2::instance(2, 2).unwrap();
 
         let custom_id1 = instance1.generate().unwrap();
         let custom_id2 = instance2.generate().unwrap();
@@ -190,7 +190,7 @@ mod integration_tests {
         crate::id!(ZeroProcessId, ZERO_PROCESS_ALGORITHM);
 
         // Test with instance that has worker_id but process_id must be 0
-        let instance = ZeroProcessId::instance(100, 0);
+        let instance = ZeroProcessId::instance(100, 0).unwrap();
         let id = instance.generate().unwrap();
         let components = id.components();
 
@@ -208,7 +208,7 @@ mod integration_tests {
         assert_eq!(id.as_u64(), composed.as_u64());
 
         // Test worker method (process should default to 0)
-        let worker_instance = ZeroProcessId::worker(100);
+        let worker_instance = ZeroProcessId::worker(100).unwrap();
         let worker_id = worker_instance.generate().unwrap();
         let worker_components = worker_id.components();
 
@@ -226,7 +226,7 @@ mod integration_tests {
         crate::id!(ConstAlgorithmId, TEST_ALGORITHM);
 
         // Test custom instance
-        let instance = ConstAlgorithmId::instance(42, 7);
+        let instance = ConstAlgorithmId::instance(42, 7).unwrap();
         let id = instance.generate().unwrap();
         let components = id.components();
 
@@ -293,8 +293,8 @@ mod integration_tests {
         crate::id!(OrderServiceId, SHARED_ALGORITHM);
 
         // Different instances for different services
-        let user_instance = UserServiceId::instance(1, 0);
-        let order_instance = OrderServiceId::instance(2, 1);
+        let user_instance = UserServiceId::instance(1, 0).unwrap();
+        let order_instance = OrderServiceId::instance(2, 1).unwrap();
 
         let user_id = user_instance.generate().unwrap();
         let order_id = order_instance.generate().unwrap();
@@ -315,8 +315,8 @@ mod integration_tests {
         assert!(order_id.as_u64() > 0);
 
         // Test different worker/process combinations
-        let another_user = UserServiceId::worker(3);
-        let another_order = OrderServiceId::process(2);
+        let another_user = UserServiceId::worker(3).unwrap();
+        let another_order = OrderServiceId::process(2).unwrap();
 
         let another_user_id = another_user.generate().unwrap();
         let another_order_id = another_order.generate().unwrap();
@@ -342,7 +342,7 @@ mod integration_tests {
         let handles: Vec<_> = (0..NUM_THREADS)
             .map(|thread_id| {
                 thread::spawn(move || {
-                    let instance = StressTestId::instance(thread_id as u64, 0);
+                    let instance = StressTestId::instance(thread_id as u64, 0).unwrap();
                     let mut ids = Vec::with_capacity(IDS_PER_THREAD);
 
                     for _ in 0..IDS_PER_THREAD {
@@ -432,7 +432,7 @@ mod integration_tests {
                 thread::spawn(move || {
                     let worker_id = i as u64;
                     let process_id = (i * 2) as u64; // Different process IDs
-                    let instance = IsolationTestId::instance(worker_id, process_id);
+                    let instance = IsolationTestId::instance(worker_id, process_id).unwrap();
 
                     let mut sequences = Vec::new();
 
@@ -487,7 +487,7 @@ mod integration_tests {
         let handles: Vec<_> = (0..NUM_THREADS)
             .map(|_| {
                 thread::spawn(move || {
-                    let instance = SameInstanceTestId::instance(WORKER_ID, PROCESS_ID);
+                    let instance = SameInstanceTestId::instance(WORKER_ID, PROCESS_ID).unwrap();
                     let mut ids = Vec::new();
 
                     for _ in 0..IDS_PER_THREAD {

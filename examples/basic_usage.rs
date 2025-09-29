@@ -23,15 +23,15 @@ fn main() {
 
     // Generate IDs with specific instances
     println!("\n2. Instance-based ID Generation:");
-    let worker_instance = UserId::worker(42);
-    let process_instance = UserId::process(7);
-    let full_instance = UserId::instance(31, 3);
+    let worker_instance = UserId::worker(15).unwrap();
+    let process_instance = UserId::process(7).unwrap();
+    let full_instance = UserId::instance(31, 3).unwrap();
 
     let worker_id = worker_instance.generate().unwrap();
     let process_id = process_instance.generate().unwrap();
     let full_id = full_instance.generate().unwrap();
 
-    println!("Worker instance ID (42, 0):  {worker_id}");
+    println!("Worker instance ID (15, 0):  {worker_id}");
     println!("Process instance ID (0, 7):  {process_id}");
     println!("Full instance ID (31, 3):    {full_id}");
 
@@ -91,7 +91,7 @@ fn main() {
     // Generate multiple IDs quickly with different instances
     println!("\n9. Multiple ID Generation with Threading Simulation:");
     for thread_id in 0..5 {
-        let instance = UserId::process(thread_id);
+        let instance = UserId::process(thread_id).unwrap();
         let id = instance.generate_blocking();
         println!("Thread {thread_id}:");
         println!("ID: {id}");
