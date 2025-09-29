@@ -113,7 +113,11 @@ impl Config {
     }
 
     /// Validate worker_id/process_id against bit limits
-    pub fn validate_instance(&self, worker_id: u64, process_id: u64) -> Result<(), ValidationError> {
+    pub fn validate_instance(
+        &self,
+        worker_id: u64,
+        process_id: u64,
+    ) -> Result<(), ValidationError> {
         if worker_id > self.worker_mask {
             return Err(ValidationError::WorkerIdOutOfRange {
                 provided: worker_id,
@@ -164,20 +168,20 @@ mod tests {
     #[test]
     fn test_algorithm_config_new() {
         let config = Config::new(
-            (42, 10, 5, 7), // bits: timestamp, worker, process, sequence
+            (42, 8, 4, 10), // bits: timestamp, worker, process, sequence
             1_600_000_000_000,
         );
 
         assert_eq!(config.timestamp_bits, 42);
-        assert_eq!(config.worker_bits, 10);
-        assert_eq!(config.process_bits, 5);
-        assert_eq!(config.sequence_bits, 7);
+        assert_eq!(config.worker_bits, 8);
+        assert_eq!(config.process_bits, 4);
+        assert_eq!(config.sequence_bits, 10);
         assert_eq!(config.epoch_ms, 1_600_000_000_000);
 
         // Check cached values are calculated correctly
-        assert_eq!(config.worker_mask, (1u64 << 10) - 1); // 1023
-        assert_eq!(config.process_mask, (1u64 << 5) - 1); // 31
-        assert_eq!(config.sequence_mask, (1u64 << 7) - 1); // 127
+        assert_eq!(config.worker_mask, (1u64 << 8) - 1); // 255
+        assert_eq!(config.process_mask, (1u64 << 4) - 1); // 15
+        assert_eq!(config.sequence_mask, (1u64 << 10) - 1); // 1023
     }
 
     #[test]
@@ -194,19 +198,19 @@ mod tests {
     #[test]
     fn test_algorithm_config_validate_instance() {
         let config = Config::new(
-            (42, 10, 5, 7), // max_worker = 1023, max_process = 31
+            (42, 8, 4, 10), // max_worker = 255, max_process = 15
             1_600_000_000_000,
         );
 
         // Valid instances
-        assert!(config.validate_instance(1023, 31).is_ok());
+        assert!(config.validate_instance(255, 15).is_ok());
         assert!(config.validate_instance(0, 0).is_ok());
 
         // Invalid worker_id
-        assert!(config.validate_instance(1024, 0).is_err());
+        assert!(config.validate_instance(256, 0).is_err());
 
         // Invalid process_id
-        assert!(config.validate_instance(0, 32).is_err());
+        assert!(config.validate_instance(0, 16).is_err());
     }
 
     // Legacy Config tests for backward compatibility

@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn test_id_macro_algorithm_config() {
         const CUSTOM_ALGORITHM: Config = Config::new(
-            (42, 10, 5, 7),    // bits: timestamp, worker, process, sequence
+            (42, 8, 4, 10),    // bits: timestamp, worker, process, sequence
             1_600_000_000_000, // epoch
         );
 
@@ -156,12 +156,12 @@ mod tests {
         assert_eq!(components.process_id, 0);
 
         // Test specific instance
-        let instance = AlgorithmId::instance(99, 3).unwrap();
+        let instance = AlgorithmId::instance(50, 5).unwrap();
         let instance_id = instance.generate().unwrap();
         let instance_components = instance_id.components();
 
-        assert_eq!(instance_components.worker_id, 99);
-        assert_eq!(instance_components.process_id, 3);
+        assert_eq!(instance_components.worker_id, 50);
+        assert_eq!(instance_components.process_id, 5);
     }
 
     #[test]
@@ -266,40 +266,38 @@ mod tests {
 
     #[test]
     fn test_id_macro_instance_methods() {
-        const CUSTOM_ALGORITHM: Config = Config::new((42, 10, 5, 7), 1_600_000_000_000);
+        const CUSTOM_ALGORITHM: Config = Config::new((42, 8, 4, 10), 1_600_000_000_000);
 
         crate::id!(InstanceMethodId, CUSTOM_ALGORITHM);
 
         // Test worker method
-        let worker_instance = InstanceMethodId::worker(99).unwrap();
+        let worker_instance = InstanceMethodId::worker(50).unwrap();
         let worker_id = worker_instance.generate().unwrap();
         let worker_components = worker_id.components();
-        assert_eq!(worker_components.worker_id, 99);
+        assert_eq!(worker_components.worker_id, 50);
         assert_eq!(worker_components.process_id, 0);
 
         // Test process method
-        let process_instance = InstanceMethodId::process(3).unwrap();
+        let process_instance = InstanceMethodId::process(5).unwrap();
         let process_id = process_instance.generate().unwrap();
         let process_components = process_id.components();
         assert_eq!(process_components.worker_id, 0);
-        assert_eq!(process_components.process_id, 3);
+        assert_eq!(process_components.process_id, 5);
 
         // Test instance method
-        let full_instance = InstanceMethodId::instance(99, 3).unwrap();
+        let full_instance = InstanceMethodId::instance(50, 5).unwrap();
         let full_id = full_instance.generate().unwrap();
         let full_components = full_id.components();
-        assert_eq!(full_components.worker_id, 99);
-        assert_eq!(full_components.process_id, 3);
+        assert_eq!(full_components.worker_id, 50);
+        assert_eq!(full_components.process_id, 5);
     }
 
     #[test]
     fn test_id_macro_multiple_instances() {
-        const SHARED_ALGORITHM: Config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-
-        crate::id!(MultiInstanceId, SHARED_ALGORITHM);
+        crate::id!(MultiInstanceId);
 
         // Test that different instances work independently
-        let instance1 = MultiInstanceId::instance(42, 7).unwrap();
+        let instance1 = MultiInstanceId::instance(10, 5).unwrap();
         let instance2 = MultiInstanceId::instance(1, 2).unwrap();
 
         // Generate IDs from both instances
@@ -309,24 +307,22 @@ mod tests {
         let components1 = id1.components();
         let components2 = id2.components();
 
-        assert_eq!(components1.worker_id, 42);
-        assert_eq!(components1.process_id, 7);
+        assert_eq!(components1.worker_id, 10);
+        assert_eq!(components1.process_id, 5);
         assert_eq!(components2.worker_id, 1);
         assert_eq!(components2.process_id, 2);
     }
 
     #[test]
     fn test_factory_pattern_macro_integration() {
-        const FACTORY_ALGORITHM: Config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-
-        crate::id!(FactoryTestId, FACTORY_ALGORITHM);
+        crate::id!(FactoryTestId);
 
         // Test Generator creation and usage
-        let stateful_gen = FactoryTestId::instance(99, 3).unwrap();
+        let stateful_gen = FactoryTestId::instance(15, 7).unwrap();
 
         // Verify bound worker and process IDs
-        assert_eq!(stateful_gen.worker_id(), 99);
-        assert_eq!(stateful_gen.process_id(), 3);
+        assert_eq!(stateful_gen.worker_id(), 15);
+        assert_eq!(stateful_gen.process_id(), 7);
 
         // Generate IDs with pre-injected state (no lookup overhead)
         let id1 = stateful_gen.generate().unwrap();
@@ -336,10 +332,10 @@ mod tests {
         let components1 = id1.components();
         let components2 = id2.components();
 
-        assert_eq!(components1.worker_id, 99);
-        assert_eq!(components1.process_id, 3);
-        assert_eq!(components2.worker_id, 99);
-        assert_eq!(components2.process_id, 3);
+        assert_eq!(components1.worker_id, 15);
+        assert_eq!(components1.process_id, 7);
+        assert_eq!(components2.worker_id, 15);
+        assert_eq!(components2.process_id, 7);
 
         // IDs should be different
         assert_ne!(id1, id2);

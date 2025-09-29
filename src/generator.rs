@@ -6,7 +6,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum GeneratorError {
-    #[error("Sequence exhausted for timestamp {timestamp} on worker_id={worker_id}, process_id={process_id}")]
+    #[error(
+        "Sequence exhausted for timestamp {timestamp} on worker_id={worker_id}, process_id={process_id}"
+    )]
     SequenceExhausted {
         timestamp: u64,
         worker_id: u64,
@@ -212,9 +214,8 @@ mod tests {
 
     #[test]
     fn test_generator_generation() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-        let state = Arc::new(crate::state::State::default());
-        let generator = Generator::new_with_state(config, state, 42, 7).unwrap();
+        let config = Config::default();
+        let generator = Generator::new(config, 5, 3).unwrap();
 
         // Generate IDs
         let id1 = generator.generate().unwrap();
@@ -226,38 +227,36 @@ mod tests {
         assert!(id2 > 0);
 
         // Verify worker/process IDs
-        assert_eq!(generator.worker_id(), 42);
-        assert_eq!(generator.process_id(), 7);
+        assert_eq!(generator.worker_id(), 5);
+        assert_eq!(generator.process_id(), 3);
     }
 
     #[test]
     fn test_generator_id_components() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-        let state = Arc::new(crate::state::State::default());
-        let generator = Generator::new_with_state(config, state, 99, 3).unwrap();
+        let config = Config::default();
+        let generator = Generator::new(config, 10, 2).unwrap();
 
         let id = generator.generate().unwrap();
         let components = generator.components(id);
 
         // Verify components match generator config
-        assert_eq!(components.worker_id, 99);
-        assert_eq!(components.process_id, 3);
+        assert_eq!(components.worker_id, 10);
+        assert_eq!(components.process_id, 2);
         assert!(components.timestamp > 0);
         assert!(components.sequence < config.sequence_mask);
     }
 
     #[test]
     fn test_generator_decompose_compose() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
-        let state = Arc::new(crate::state::State::default());
-        let generator = Generator::new_with_state(config, state, 123, 15).unwrap();
+        let config = Config::default();
+        let generator = Generator::new(config, 15, 7).unwrap();
 
         let id = generator.generate().unwrap();
         let (timestamp, worker_id, process_id, sequence) = generator.decompose(id);
         let recomposed = generator.compose_custom(timestamp, worker_id, process_id, sequence);
 
         assert_eq!(id, recomposed);
-        assert_eq!(worker_id, 123);
-        assert_eq!(process_id, 15);
+        assert_eq!(worker_id, 15);
+        assert_eq!(process_id, 7);
     }
 }

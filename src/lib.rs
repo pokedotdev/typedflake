@@ -130,19 +130,9 @@ mod integration_tests {
 
     #[test]
     fn test_multiple_id_types_independence() {
-        // Create different ID types with different algorithms
-        const ALGORITHM1: Config = Config::new(
-            (40, 10, 6, 8), // bits: timestamp, worker, process, sequence
-            Config::DEFAULT_EPOCH_MS,
-        );
-
-        const ALGORITHM2: Config = Config::new(
-            (42, 8, 4, 10), // bits: timestamp, worker, process, sequence
-            Config::DEFAULT_EPOCH_MS,
-        );
-
-        crate::id!(IdType1, ALGORITHM1);
-        crate::id!(IdType2, ALGORITHM2);
+        // Create different ID types with default config
+        crate::id!(IdType1);
+        crate::id!(IdType2);
 
         // Test default instances (0, 0)
         let id1 = IdType1::generate().unwrap();
@@ -219,19 +209,19 @@ mod integration_tests {
     #[test]
     fn test_const_algorithm_integration() {
         const TEST_ALGORITHM: Config = Config::new(
-            (41, 10, 5, 8),    // bits: timestamp, worker, process, sequence
+            (42, 8, 4, 10),    // bits: timestamp, worker, process, sequence
             1_500_000_000_000, // epoch
         );
 
         crate::id!(ConstAlgorithmId, TEST_ALGORITHM);
 
         // Test custom instance
-        let instance = ConstAlgorithmId::instance(42, 7).unwrap();
+        let instance = ConstAlgorithmId::instance(20, 5).unwrap();
         let id = instance.generate().unwrap();
         let components = id.components();
 
-        assert_eq!(components.worker_id, 42);
-        assert_eq!(components.process_id, 7);
+        assert_eq!(components.worker_id, 20);
+        assert_eq!(components.process_id, 5);
 
         // Test default instance
         let default_id = ConstAlgorithmId::generate().unwrap();
@@ -285,7 +275,7 @@ mod integration_tests {
 
         // Shared algorithm configuration across services
         const SHARED_ALGORITHM: Config = Config::new(
-            (42, 10, 5, 7), // bits: timestamp, worker, process, sequence
+            (42, 8, 4, 10), // bits: timestamp, worker, process, sequence
             1_600_000_000_000,
         );
 
@@ -404,7 +394,7 @@ mod integration_tests {
     #[test]
     fn test_custom_config_still_works_with_defaults() {
         // Verify that explicit custom configs are not affected by default config system
-        const CUSTOM_ALGORITHM: Config = Config::new((40, 12, 4, 8), 1_500_000_000_000);
+        const CUSTOM_ALGORITHM: Config = Config::new((42, 8, 4, 10), 1_500_000_000_000);
 
         crate::id!(CustomConfigId, CUSTOM_ALGORITHM);
 

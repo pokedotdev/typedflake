@@ -32,7 +32,11 @@ impl IdManager {
     }
 
     /// Create generator with specific worker_id and process_id
-    pub fn create_generator(&self, worker_id: u64, process_id: u64) -> Result<Generator, ValidationError> {
+    pub fn create_generator(
+        &self,
+        worker_id: u64,
+        process_id: u64,
+    ) -> Result<Generator, ValidationError> {
         // Get pre-allocated state (no lookup overhead)
         let state = self.states.get_state(worker_id, process_id).clone();
 
@@ -59,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_id_manager() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
+        let config = Config::default();
         let manager = IdManager::new(config);
 
         // Create different generators
@@ -78,9 +82,9 @@ mod tests {
 
     #[test]
     fn test_manager_generation() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
+        let config = Config::default();
         let manager = IdManager::new(config);
-        let generator = manager.create_generator(42, 7).unwrap();
+        let generator = manager.create_generator(5, 3).unwrap();
 
         // Generate IDs
         let id1 = generator.generate().unwrap();
@@ -94,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_default_generator() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
+        let config = Config::default();
         let manager = IdManager::new(config);
 
         // Test default generator
@@ -109,15 +113,15 @@ mod tests {
 
     #[test]
     fn test_worker_and_process_methods() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
+        let config = Config::default();
         let manager = IdManager::new(config);
 
-        let worker_gen = manager.create_worker(42).unwrap();
-        let process_gen = manager.create_process(7).unwrap();
+        let worker_gen = manager.create_worker(10).unwrap();
+        let process_gen = manager.create_process(5).unwrap();
 
-        assert_eq!(worker_gen.worker_id(), 42);
+        assert_eq!(worker_gen.worker_id(), 10);
         assert_eq!(worker_gen.process_id(), 0); // default
         assert_eq!(process_gen.worker_id(), 0); // default
-        assert_eq!(process_gen.process_id(), 7);
+        assert_eq!(process_gen.process_id(), 5);
     }
 }

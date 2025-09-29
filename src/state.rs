@@ -90,16 +90,16 @@ mod tests {
 
     #[test]
     fn test_direct_state_vec_creation() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
+        let config = Config::default();
         let state_vec = StateVec::new(config);
 
-        // Should create states for all combinations: (2^10) * (2^5) = 32768 states
-        assert_eq!(state_vec.states.len(), 32768);
+        // Should create states for all combinations: (2^5) * (2^5) = 1024 states
+        assert_eq!(state_vec.states.len(), 1024);
     }
 
     #[test]
     fn test_direct_state_vec_indexing() {
-        let config = Config::new((41, 10, 5, 8), Config::DEFAULT_EPOCH_MS);
+        let config = Config::default();
         let state_vec = StateVec::new(config);
 
         // Test mathematical indexing
