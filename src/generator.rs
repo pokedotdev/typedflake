@@ -213,7 +213,7 @@ mod tests {
     use crate::Config;
 
     #[test]
-    fn test_generator_generation() {
+    fn generator_id_generation() {
         let config = Config::default();
         let generator = Generator::new(config, 5, 3).unwrap();
 
@@ -232,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generator_id_components() {
+    fn extract_id_components() {
         let config = Config::default();
         let generator = Generator::new(config, 10, 2).unwrap();
 
@@ -247,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generator_decompose_compose() {
+    fn decompose_compose_roundtrip() {
         let config = Config::default();
         let generator = Generator::new(config, 15, 7).unwrap();
 
@@ -258,5 +258,47 @@ mod tests {
         assert_eq!(id, recomposed);
         assert_eq!(worker_id, 15);
         assert_eq!(process_id, 7);
+    }
+
+    #[test]
+    fn max_value_composition_and_overflow() {
+        // Test compose/decompose with maximum values for custom config
+        let config = Config::new(
+            (42, 8, 4, 10), // 42 timestamp, 8 worker, 4 process, 10 sequence
+            1_500_000_000_000,
+        );
+        let generator = Generator::new(config, 0, 0).unwrap();
+
+        let max_timestamp = (1u64 << 42) - 1; // 42 bits
+        let max_worker = (1u64 << 8) - 1; // 255
+        let max_process = (1u64 << 4) - 1; // 15
+        let max_sequence = (1u64 << 10) - 1; // 1023
+
+        let composed = generator.compose_custom(max_timestamp, max_worker, max_process, max_sequence);
+        let (dec_timestamp, dec_worker, dec_process, dec_sequence) = generator.decompose(composed);
+
+        // Verify all components are preserved correctly
+        assert_eq!(
+            dec_timestamp, max_timestamp,
+            "Timestamp should be preserved"
+        );
+        assert_eq!(dec_worker, max_worker, "Worker ID should be preserved");
+        assert_eq!(dec_process, max_process, "Process ID should be preserved");
+        assert_eq!(dec_sequence, max_sequence, "Sequence should be preserved");
+
+        // Verify bit masking handles overflow correctly
+        let overflow_timestamp = 1u64 << 50; // More than 42 bits
+        let overflow_composed = generator.compose_custom(overflow_timestamp, 0, 0, 0);
+        let overflow_dec = generator.decompose(overflow_composed);
+
+        // Should be masked to 42 bits
+        assert!(
+            overflow_dec.0 <= max_timestamp,
+            "Overflow timestamp should be masked"
+        );
+        assert_ne!(
+            overflow_dec.0, overflow_timestamp,
+            "Overflow should be truncated"
+        );
     }
 }

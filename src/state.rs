@@ -89,7 +89,7 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn test_state_pool_creation() {
+    fn pool_preallocates_all_states() {
         let config = Config::default();
         let state_pool = StatePool::new(config);
 
@@ -98,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn test_state_pool_indexing() {
+    fn pool_mathematical_indexing() {
         let config = Config::default();
         let state_pool = StatePool::new(config);
 

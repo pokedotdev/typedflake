@@ -73,22 +73,12 @@ pub fn is_defaults_set() -> bool {
     GLOBAL_DEFAULTS.get().is_some()
 }
 
-/// Check if default configuration has been set
-pub fn is_default_config_set() -> bool {
-    GLOBAL_DEFAULTS.get().is_some()
-}
-
-/// Check if default instance has been set
-pub fn is_default_instance_set() -> bool {
-    GLOBAL_DEFAULTS.get().is_some()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_default_config_initialization() {
+    fn default_config_fallback() {
         // Before setting anything, should return default config
         let config = get_default_config();
         let default_config = Config::default();
@@ -101,7 +91,7 @@ mod tests {
     }
 
     #[test]
-    fn test_default_instance_initialization() {
+    fn default_instance_zero_zero() {
         // Before setting anything, should return (0, 0)
         let (worker_id, process_id) = get_default_instance();
         assert_eq!(worker_id, 0);

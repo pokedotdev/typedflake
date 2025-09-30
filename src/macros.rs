@@ -124,7 +124,7 @@ mod tests {
     use crate::Config;
 
     #[test]
-    fn test_id_macro_default() {
+    fn macro_generates_default_config() {
         crate::id!(TestId);
 
         let id1 = TestId::generate().unwrap();
@@ -140,23 +140,23 @@ mod tests {
     }
 
     #[test]
-    fn test_id_macro_algorithm_config() {
-        const CUSTOM_ALGORITHM: Config = Config::new(
+    fn macro_with_custom_config() {
+        const CUSTOM_CONFIG: Config = Config::new(
             (42, 8, 4, 10),    // bits: timestamp, worker, process, sequence
             1_600_000_000_000, // epoch
         );
 
-        crate::id!(AlgorithmId, CUSTOM_ALGORITHM);
+        crate::id!(CustomId, CUSTOM_CONFIG);
 
         // Test default instance (0, 0)
-        let id = AlgorithmId::generate().unwrap();
+        let id = CustomId::generate().unwrap();
         let components = id.components();
 
         assert_eq!(components.worker_id, 0);
         assert_eq!(components.process_id, 0);
 
         // Test specific instance
-        let instance = AlgorithmId::instance(50, 5).unwrap();
+        let instance = CustomId::instance(50, 5).unwrap();
         let instance_id = instance.generate().unwrap();
         let instance_components = instance_id.components();
 
@@ -165,7 +165,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_compose_decompose() {
+    fn compose_decompose_roundtrip() {
         crate::id!(ComposeId);
 
         let timestamp = 123456789;
@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_individual_components() {
+    fn extract_individual_components() {
         crate::id!(ComponentId);
 
         let id = ComponentId::generate().unwrap();
@@ -202,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_conversions() {
+    fn u64_conversions() {
         crate::id!(ConversionId);
 
         let id = ConversionId::generate().unwrap();
@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_display_and_parsing() {
+    fn string_display_and_parsing() {
         crate::id!(ParseId);
 
         let id = ParseId::generate().unwrap();
@@ -230,17 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_blocking_generate() {
-        crate::id!(BlockingId);
-
-        let id1 = BlockingId::generate_blocking();
-        let id2 = BlockingId::generate_blocking();
-
-        assert_ne!(id1, id2);
-    }
-
-    #[test]
-    fn test_multiple_id_types() {
+    fn multiple_types_independent() {
         crate::id!(UserId);
         crate::id!(OrderId);
 
@@ -265,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_macro_instance_methods() {
+    fn instance_convenience_methods() {
         const CUSTOM_ALGORITHM: Config = Config::new((42, 8, 4, 10), 1_600_000_000_000);
 
         crate::id!(InstanceMethodId, CUSTOM_ALGORITHM);
@@ -293,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_id_macro_multiple_instances() {
+    fn multiple_instances_independent_state() {
         crate::id!(MultiInstanceId);
 
         // Test that different instances work independently
@@ -314,7 +304,7 @@ mod tests {
     }
 
     #[test]
-    fn test_factory_pattern_macro_integration() {
+    fn generator_with_bound_ids() {
         crate::id!(FactoryTestId);
 
         // Test Generator creation and usage

@@ -62,7 +62,7 @@ mod tests {
     use crate::Config;
 
     #[test]
-    fn test_id_context() {
+    fn context_create_generators() {
         let config = Config::default();
         let context = IdContext::new(config);
 
@@ -81,7 +81,7 @@ mod tests {
     }
 
     #[test]
-    fn test_context_generation() {
+    fn context_id_generation() {
         let config = Config::default();
         let context = IdContext::new(config);
         let generator = context.create_generator(5, 3).unwrap();
@@ -97,7 +97,7 @@ mod tests {
     }
 
     #[test]
-    fn test_default_generator() {
+    fn default_generator_singleton() {
         let config = Config::default();
         let context = IdContext::new(config);
 
@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn test_worker_and_process_methods() {
+    fn worker_and_process_convenience_methods() {
         let config = Config::default();
         let context = IdContext::new(config);
 

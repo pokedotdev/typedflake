@@ -155,7 +155,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_algorithm_config_default() {
+    fn config_default() {
         let config = Config::default();
         assert_eq!(
             config.timestamp_bits + config.worker_bits + config.process_bits + config.sequence_bits,
@@ -166,7 +166,7 @@ mod tests {
     }
 
     #[test]
-    fn test_algorithm_config_new() {
+    fn config_new() {
         let config = Config::new(
             (42, 8, 4, 10), // bits: timestamp, worker, process, sequence
             1_600_000_000_000,
@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn test_algorithm_config_zero_process_bits() {
+    fn config_zero_process_bits() {
         let config = Config::new(
             (41, 10, 0, 13), // process_bits = 0
             Config::DEFAULT_EPOCH_MS,
@@ -196,32 +196,68 @@ mod tests {
     }
 
     #[test]
-    fn test_algorithm_config_validate_instance() {
+    fn validate_instance_boundaries_and_errors() {
         let config = Config::new(
             (42, 8, 4, 10), // max_worker = 255, max_process = 15
             1_600_000_000_000,
         );
 
-        // Valid instances
+        // Valid instances - boundaries
         assert!(config.validate_instance(255, 15).is_ok());
         assert!(config.validate_instance(0, 0).is_ok());
 
-        // Invalid worker_id
-        assert!(config.validate_instance(256, 0).is_err());
+        // Invalid worker_id - verify error details
+        let worker_error = config.validate_instance(256, 0);
+        assert!(worker_error.is_err());
+        if let Err(ValidationError::WorkerIdOutOfRange {
+            provided,
+            maximum,
+            bits,
+        }) = worker_error
+        {
+            assert_eq!(provided, 256);
+            assert_eq!(maximum, 255);
+            assert_eq!(bits, 8);
 
-        // Invalid process_id
-        assert!(config.validate_instance(0, 16).is_err());
-    }
+            // Verify error message format
+            let error_msg = format!("{}", ValidationError::WorkerIdOutOfRange {
+                provided,
+                maximum,
+                bits,
+            });
+            assert!(error_msg.contains("Worker ID"));
+            assert!(error_msg.contains("256"));
+            assert!(error_msg.contains("255"));
+            assert!(error_msg.contains("8 bits"));
+        } else {
+            panic!("Expected WorkerIdOutOfRange error");
+        }
 
-    // Legacy Config tests for backward compatibility
-    #[test]
-    fn test_legacy_config_default() {
-        let config = Config::default();
-        assert_eq!(
-            config.timestamp_bits + config.worker_bits + config.process_bits + config.sequence_bits,
-            64
-        );
-        assert!(config.timestamp_bits > 0);
-        assert!(config.sequence_bits > 0);
+        // Invalid process_id - verify error details
+        let process_error = config.validate_instance(0, 16);
+        assert!(process_error.is_err());
+        if let Err(ValidationError::ProcessIdOutOfRange {
+            provided,
+            maximum,
+            bits,
+        }) = process_error
+        {
+            assert_eq!(provided, 16);
+            assert_eq!(maximum, 15);
+            assert_eq!(bits, 4);
+
+            // Verify error message format
+            let error_msg = format!("{}", ValidationError::ProcessIdOutOfRange {
+                provided,
+                maximum,
+                bits,
+            });
+            assert!(error_msg.contains("Process ID"));
+            assert!(error_msg.contains("16"));
+            assert!(error_msg.contains("15"));
+            assert!(error_msg.contains("4 bits"));
+        } else {
+            panic!("Expected ProcessIdOutOfRange error");
+        }
     }
 }
