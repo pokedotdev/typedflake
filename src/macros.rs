@@ -39,76 +39,76 @@ macro_rules! id {
             }
 
             impl $name {
-                /// Returns the singleton IdManager for this ID type (lazy static initialization)
-                fn manager() -> &'static $crate::manager::IdManager {
-                    static MANAGER: std::sync::OnceLock<$crate::manager::IdManager> =
+                /// Returns the singleton IdContext for this ID type (lazy static initialization)
+                fn context() -> &'static $crate::context::IdContext {
+                    static CONTEXT: std::sync::OnceLock<$crate::context::IdContext> =
                         std::sync::OnceLock::new();
-                    MANAGER.get_or_init(|| $crate::manager::IdManager::new($config))
+                    CONTEXT.get_or_init(|| $crate::context::IdContext::new($config))
                 }
 
                 /// Generate a new ID with default instance (0, 0)
                 pub fn generate() -> Result<Self, $crate::generator::GeneratorError> {
-                    let id = Self::manager().default_generator().generate()?;
+                    let id = Self::context().default_generator().generate()?;
                     Ok(Self(id))
                 }
 
                 /// Generate a new ID with default instance (0, 0), blocking until next millisecond if sequence is exhausted
                 pub fn generate_blocking() -> Self {
-                    let id = Self::manager().default_generator().generate_blocking();
+                    let id = Self::context().default_generator().generate_blocking();
                     Self(id)
                 }
 
                 /// Create a typed generator wrapper with specific worker_id and process_id
                 pub fn instance(worker_id: u64, process_id: u64) -> Result<[<$name Generator>], $crate::config::ValidationError> {
-                    let inner = Self::manager().create_generator(worker_id, process_id)?;
+                    let inner = Self::context().create_generator(worker_id, process_id)?;
                     Ok([<$name Generator>] { inner })
                 }
 
                 /// Create a typed generator wrapper with specific worker_id and default process_id
                 pub fn worker(worker_id: u64) -> Result<[<$name Generator>], $crate::config::ValidationError> {
-                    let inner = Self::manager().create_worker(worker_id)?;
+                    let inner = Self::context().create_worker(worker_id)?;
                     Ok([<$name Generator>] { inner })
                 }
 
                 /// Create a typed generator wrapper with default worker_id and specific process_id
                 pub fn process(process_id: u64) -> Result<[<$name Generator>], $crate::config::ValidationError> {
-                    let inner = Self::manager().create_process(process_id)?;
+                    let inner = Self::context().create_process(process_id)?;
                     Ok([<$name Generator>] { inner })
                 }
 
                 /// Decompose the ID into its components as a tuple
                 pub fn decompose(self) -> (u64, u64, u64, u64) {
-                    Self::manager().default_generator().decompose(self.0)
+                    Self::context().default_generator().decompose(self.0)
                 }
 
                 /// Get the ID components as a struct
                 pub fn components(self) -> $crate::generator::IdComponents {
-                    Self::manager().default_generator().components(self.0)
+                    Self::context().default_generator().components(self.0)
                 }
 
                 /// Get just the timestamp component
                 pub fn timestamp(self) -> u64 {
-                    Self::manager().default_generator().extract_timestamp(self.0)
+                    Self::context().default_generator().extract_timestamp(self.0)
                 }
 
                 /// Get just the worker ID component
                 pub fn worker_id(self) -> u64 {
-                    Self::manager().default_generator().extract_worker_id(self.0)
+                    Self::context().default_generator().extract_worker_id(self.0)
                 }
 
                 /// Get just the process ID component
                 pub fn process_id(self) -> u64 {
-                    Self::manager().default_generator().extract_process_id(self.0)
+                    Self::context().default_generator().extract_process_id(self.0)
                 }
 
                 /// Get just the sequence component
                 pub fn sequence(self) -> u64 {
-                    Self::manager().default_generator().extract_sequence(self.0)
+                    Self::context().default_generator().extract_sequence(self.0)
                 }
 
                 /// Compose an ID from individual components
                 pub fn compose(timestamp: u64, worker_id: u64, process_id: u64, sequence: u64) -> Self {
-                    let id = Self::manager().default_generator().compose_custom(timestamp, worker_id, process_id, sequence);
+                    let id = Self::context().default_generator().compose_custom(timestamp, worker_id, process_id, sequence);
                     Self(id)
                 }
             }

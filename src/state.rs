@@ -37,14 +37,14 @@ impl Default for State {
     }
 }
 
-/// Direct state vector with mathematical indexing
+/// Pre-allocated state pool with mathematical indexing
 #[derive(Debug)]
-pub struct StateVec {
+pub struct StatePool {
     pub states: Vec<Arc<State>>,
     config: Config,
 }
 
-impl StateVec {
+impl StatePool {
     /// Create with pre-allocated states for all possible (worker_id, process_id) combinations
     pub fn new(config: Config) -> Self {
         // Calculate total size based on bit allocation
@@ -89,23 +89,23 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn test_direct_state_vec_creation() {
+    fn test_state_pool_creation() {
         let config = Config::default();
-        let state_vec = StateVec::new(config);
+        let state_pool = StatePool::new(config);
 
         // Should create states for all combinations: (2^5) * (2^5) = 1024 states
-        assert_eq!(state_vec.states.len(), 1024);
+        assert_eq!(state_pool.states.len(), 1024);
     }
 
     #[test]
-    fn test_direct_state_vec_indexing() {
+    fn test_state_pool_indexing() {
         let config = Config::default();
-        let state_vec = StateVec::new(config);
+        let state_pool = StatePool::new(config);
 
         // Test mathematical indexing
-        let state1 = state_vec.get_state(0, 0);
-        let state2 = state_vec.get_state(1, 0);
-        let state3 = state_vec.get_state(0, 1);
+        let state1 = state_pool.get_state(0, 0);
+        let state2 = state_pool.get_state(1, 0);
+        let state3 = state_pool.get_state(0, 1);
 
         // Different worker/process should give different states
         assert!(!Arc::ptr_eq(state1, state2));
@@ -113,7 +113,7 @@ mod tests {
         assert!(!Arc::ptr_eq(state2, state3));
 
         // Same worker/process should give same state
-        let state1_again = state_vec.get_state(0, 0);
+        let state1_again = state_pool.get_state(0, 0);
         assert!(Arc::ptr_eq(state1, state1_again));
     }
 }

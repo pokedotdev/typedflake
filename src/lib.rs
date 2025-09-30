@@ -111,9 +111,9 @@
 //! ```
 
 pub mod config;
+pub mod context;
 pub mod generator;
 pub mod global;
-pub mod manager;
 pub mod state;
 pub mod traits;
 
@@ -121,8 +121,8 @@ mod macros; // Keep macros private, they're exported via the macro itself
 
 // Re-export main types and the macro
 pub use config::{Config, ValidationError};
+pub use context::IdContext;
 pub use generator::{Generator, GeneratorError, IdComponents};
-pub use manager::IdManager;
 
 #[cfg(test)]
 mod integration_tests {

@@ -1,20 +1,20 @@
 use crate::config::{Config, ValidationError};
 use crate::generator::Generator;
 use crate::global;
-use crate::state::StateVec;
+use crate::state::StatePool;
 use std::sync::OnceLock;
 
-/// Unified manager for ID type state - combines factory and default generator
-pub struct IdManager {
+/// Context for ID type - holds config, state pool, and default generator
+pub struct IdContext {
     config: Config,
-    states: StateVec,
+    states: StatePool,
     default_generator: OnceLock<Generator>,
 }
 
-impl IdManager {
-    /// Create new manager for given config
+impl IdContext {
+    /// Create new context for given config
     pub fn new(config: Config) -> Self {
-        let states = StateVec::new(config);
+        let states = StatePool::new(config);
         Self {
             config,
             states,
@@ -62,14 +62,14 @@ mod tests {
     use crate::Config;
 
     #[test]
-    fn test_id_manager() {
+    fn test_id_context() {
         let config = Config::default();
-        let manager = IdManager::new(config);
+        let context = IdContext::new(config);
 
         // Create different generators
-        let gen1 = manager.create_generator(0, 0).unwrap();
-        let gen2 = manager.create_generator(1, 0).unwrap();
-        let gen3 = manager.create_generator(0, 1).unwrap();
+        let gen1 = context.create_generator(0, 0).unwrap();
+        let gen2 = context.create_generator(1, 0).unwrap();
+        let gen3 = context.create_generator(0, 1).unwrap();
 
         // Verify they have different worker/process IDs
         assert_eq!(gen1.worker_id(), 0);
@@ -81,10 +81,10 @@ mod tests {
     }
 
     #[test]
-    fn test_manager_generation() {
+    fn test_context_generation() {
         let config = Config::default();
-        let manager = IdManager::new(config);
-        let generator = manager.create_generator(5, 3).unwrap();
+        let context = IdContext::new(config);
+        let generator = context.create_generator(5, 3).unwrap();
 
         // Generate IDs
         let id1 = generator.generate().unwrap();
@@ -99,25 +99,25 @@ mod tests {
     #[test]
     fn test_default_generator() {
         let config = Config::default();
-        let manager = IdManager::new(config);
+        let context = IdContext::new(config);
 
         // Test default generator
-        let default_gen = manager.default_generator();
+        let default_gen = context.default_generator();
         let id = default_gen.generate().unwrap();
         assert!(id > 0);
 
         // Should be same instance on subsequent calls
-        let default_gen2 = manager.default_generator();
+        let default_gen2 = context.default_generator();
         assert!(std::ptr::eq(default_gen, default_gen2));
     }
 
     #[test]
     fn test_worker_and_process_methods() {
         let config = Config::default();
-        let manager = IdManager::new(config);
+        let context = IdContext::new(config);
 
-        let worker_gen = manager.create_worker(10).unwrap();
-        let process_gen = manager.create_process(5).unwrap();
+        let worker_gen = context.create_worker(10).unwrap();
+        let process_gen = context.create_process(5).unwrap();
 
         assert_eq!(worker_gen.worker_id(), 10);
         assert_eq!(worker_gen.process_id(), 0); // default
