@@ -118,14 +118,14 @@ impl Generator {
             return Err(ValidationError::TimestampOutOfRange {
                 provided: timestamp,
                 maximum: self.config.layout.timestamp_max(),
-                bits: self.config.layout.timestamp,
+                bits: self.config.layout.timestamp(),
             });
         }
         if sequence > self.config.layout.sequence_max() {
             return Err(ValidationError::SequenceOutOfRange {
                 provided: sequence,
                 maximum: self.config.layout.sequence_max(),
-                bits: self.config.layout.sequence,
+                bits: self.config.layout.sequence(),
             });
         }
         Ok(self.compose_unchecked(timestamp, sequence))

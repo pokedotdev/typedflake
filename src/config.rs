@@ -101,10 +101,10 @@ pub enum BitLayoutError {
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BitLayout {
-    pub timestamp: u8,
-    pub worker: u8,
-    pub process: u8,
-    pub sequence: u8,
+    timestamp: u8,
+    worker: u8,
+    process: u8,
+    sequence: u8,
 }
 
 impl BitLayout {
@@ -149,6 +149,43 @@ impl BitLayout {
             process,
             sequence,
         }
+    }
+
+    /// Create a new BitLayout with runtime validation
+    pub fn try_new(
+        timestamp: u8,
+        worker: u8,
+        process: u8,
+        sequence: u8,
+    ) -> Result<Self, BitLayoutError> {
+        let layout = Self {
+            timestamp,
+            worker,
+            process,
+            sequence,
+        };
+        layout.validate()?;
+        Ok(layout)
+    }
+
+    /// Get timestamp bits
+    pub const fn timestamp(&self) -> u8 {
+        self.timestamp
+    }
+
+    /// Get worker bits
+    pub const fn worker(&self) -> u8 {
+        self.worker
+    }
+
+    /// Get process bits
+    pub const fn process(&self) -> u8 {
+        self.process
+    }
+
+    /// Get sequence bits
+    pub const fn sequence(&self) -> u8 {
+        self.sequence
     }
 
     /// Validate this BitLayout
@@ -251,10 +288,10 @@ impl fmt::Debug for BitLayout {
             f,
             "BitLayout {{ timestamp: {}, worker: {}, process: {}, sequence: {} }}\n\
              Capacity: {:.1} years, {} instances, {} IDs/ms",
-            self.timestamp,
-            self.worker,
-            self.process,
-            self.sequence,
+            self.timestamp(),
+            self.worker(),
+            self.process(),
+            self.sequence(),
             self.timestamp_duration_years(),
             self.total_instances(),
             self.ids_per_millisecond()
@@ -267,7 +304,10 @@ impl fmt::Display for BitLayout {
         write!(
             f,
             "BitLayout[{}t|{}w|{}p|{}s]",
-            self.timestamp, self.worker, self.process, self.sequence
+            self.timestamp(),
+            self.worker(),
+            self.process(),
+            self.sequence()
         )
     }
 }
@@ -350,14 +390,14 @@ impl Config {
             return Err(ValidationError::WorkerIdOutOfRange {
                 provided: worker_id,
                 maximum: self.layout.worker_max(),
-                bits: self.layout.worker,
+                bits: self.layout.worker(),
             });
         }
         if process_id > self.layout.process_max() {
             return Err(ValidationError::ProcessIdOutOfRange {
                 provided: process_id,
                 maximum: self.layout.process_max(),
-                bits: self.layout.process,
+                bits: self.layout.process(),
             });
         }
         Ok(())
@@ -375,28 +415,28 @@ impl Config {
             return Err(ValidationError::TimestampOutOfRange {
                 provided: timestamp,
                 maximum: self.layout.timestamp_max(),
-                bits: self.layout.timestamp,
+                bits: self.layout.timestamp(),
             });
         }
         if worker_id > self.layout.worker_max() {
             return Err(ValidationError::WorkerIdOutOfRange {
                 provided: worker_id,
                 maximum: self.layout.worker_max(),
-                bits: self.layout.worker,
+                bits: self.layout.worker(),
             });
         }
         if process_id > self.layout.process_max() {
             return Err(ValidationError::ProcessIdOutOfRange {
                 provided: process_id,
                 maximum: self.layout.process_max(),
-                bits: self.layout.process,
+                bits: self.layout.process(),
             });
         }
         if sequence > self.layout.sequence_max() {
             return Err(ValidationError::SequenceOutOfRange {
                 provided: sequence,
                 maximum: self.layout.sequence_max(),
-                bits: self.layout.sequence,
+                bits: self.layout.sequence(),
             });
         }
         Ok(())
@@ -429,11 +469,11 @@ mod tests {
         let config = Config::default();
         let layout = config.layout;
         assert_eq!(
-            layout.timestamp + layout.worker + layout.process + layout.sequence,
+            layout.timestamp() + layout.worker() + layout.process() + layout.sequence(),
             64
         );
-        assert!(layout.timestamp > 0);
-        assert!(layout.sequence > 0);
+        assert!(layout.timestamp() > 0);
+        assert!(layout.sequence() > 0);
     }
 
     #[test]
@@ -443,10 +483,10 @@ mod tests {
             1_600_000_000_000,
         );
 
-        assert_eq!(config.layout.timestamp, 42);
-        assert_eq!(config.layout.worker, 8);
-        assert_eq!(config.layout.process, 4);
-        assert_eq!(config.layout.sequence, 10);
+        assert_eq!(config.layout.timestamp(), 42);
+        assert_eq!(config.layout.worker(), 8);
+        assert_eq!(config.layout.process(), 4);
+        assert_eq!(config.layout.sequence(), 10);
         assert_eq!(config.epoch_ms, 1_600_000_000_000);
 
         // Check max values are calculated correctly via BitLayout methods
@@ -462,7 +502,7 @@ mod tests {
             Config::DEFAULT_EPOCH_MS,
         );
 
-        assert_eq!(config.layout.process, 0);
+        assert_eq!(config.layout.process(), 0);
         assert_eq!(config.layout.process_max(), 0);
     }
 

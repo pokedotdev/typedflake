@@ -24,6 +24,10 @@
 //!
 //! ```rust
 //! # typedflake::id!(UserId);
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let raw_value = UserId::generate()?.as_u64();
+//! # let (ts, _, _, seq) = UserId::generate()?.decompose();
+//! # let (ts2, worker, process, seq2) = UserId::generate()?.decompose();
 //! // ✅ Validated constructors (preferred)
 //! let id = UserId::try_from_u64(raw_value)?;                          // From raw u64
 //! let id: UserId = raw_value.try_into()?;                             // Via TryFrom
@@ -35,6 +39,8 @@
 //! let id = UserId::from_u64_unchecked(raw_value);                     // No validation
 //! let id = UserId::compose_unchecked(ts, seq);                        // No validation
 //! let id = UserId::compose_custom_unchecked(ts2, worker, process, seq2); // No validation
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Quick Start
@@ -110,6 +116,7 @@
 //!
 //! ```rust
 //! # typedflake::id!(ExampleId);
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let id = ExampleId::generate().unwrap();
 //!
 //! // Convert to/from u64
@@ -129,6 +136,8 @@
 //!
 //! // Compose from components
 //! let composed_id = ExampleId::compose_custom(timestamp, worker_id, process_id, sequence)?;
+//! # Ok(())
+//! # }
 //! ```
 
 pub mod config;

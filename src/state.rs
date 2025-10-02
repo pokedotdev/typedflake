@@ -18,12 +18,12 @@ impl State {
 
     /// Pack timestamp and sequence into single u64
     pub fn pack_state(&self, timestamp: u64, sequence: u64, config: Config) -> u64 {
-        (timestamp << config.layout.sequence) | (sequence & config.layout.sequence_max())
+        (timestamp << config.layout.sequence()) | (sequence & config.layout.sequence_max())
     }
 
     /// Unpack timestamp and sequence from single u64
     pub fn unpack_state(&self, packed: u64, config: Config) -> (u64, u64) {
-        let timestamp = packed >> config.layout.sequence;
+        let timestamp = packed >> config.layout.sequence();
         let sequence = packed & config.layout.sequence_max();
         (timestamp, sequence)
     }
@@ -69,7 +69,7 @@ impl StatePool {
 
         // Mathematical mapping: index = worker_id * max_processes + process_id
         // This uses the same shift logic as ID composition but for indexing
-        let index = (masked_worker << self.config.layout.process) | masked_process;
+        let index = (masked_worker << self.config.layout.process()) | masked_process;
         index as usize
     }
 
