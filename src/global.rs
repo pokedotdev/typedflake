@@ -83,10 +83,10 @@ mod tests {
         let config = get_default_config();
         let default_config = Config::default();
 
-        assert_eq!(config.timestamp_bits, default_config.timestamp_bits);
-        assert_eq!(config.worker_bits, default_config.worker_bits);
-        assert_eq!(config.process_bits, default_config.process_bits);
-        assert_eq!(config.sequence_bits, default_config.sequence_bits);
+        assert_eq!(config.layout.timestamp, default_config.layout.timestamp);
+        assert_eq!(config.layout.worker, default_config.layout.worker);
+        assert_eq!(config.layout.process, default_config.layout.process);
+        assert_eq!(config.layout.sequence, default_config.layout.sequence);
         assert_eq!(config.epoch_ms, default_config.epoch_ms);
     }
 

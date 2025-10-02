@@ -1,10 +1,10 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use typedflake::Config;
+use typedflake::{BitLayout, Config};
 
 // Create ID types for benchmarking
 typedflake::id!(BenchId);
 
-const CUSTOM_CONFIG: Config = Config::new((42, 5, 5, 12), 1_600_000_000_000);
+const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 5, 5, 12), Config::DEFAULT_EPOCH_MS);
 
 typedflake::id!(CustomBenchId, CUSTOM_CONFIG);
 

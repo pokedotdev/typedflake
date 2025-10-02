@@ -67,7 +67,7 @@ impl Generator {
             let timestamp = current_timestamp.max(last_timestamp);
 
             let (new_timestamp, new_sequence) = if timestamp == last_timestamp {
-                if current_sequence >= self.config.sequence_mask {
+                if current_sequence >= self.config.layout.sequence_max() {
                     return Err(GeneratorError::SequenceExhausted {
                         timestamp,
                         worker_id: self.worker_id,
@@ -114,15 +114,16 @@ impl Generator {
     /// Compose ID using injected worker_id and process_id
     #[inline]
     fn compose_id(&self, timestamp: u64, sequence: u64) -> u64 {
-        let masked_timestamp = timestamp & self.config.timestamp_mask;
-        let masked_worker = self.worker_id & self.config.worker_mask;
-        let masked_process = self.process_id & self.config.process_mask;
-        let masked_sequence = sequence & self.config.sequence_mask;
+        let layout = &self.config.layout;
+        let masked_timestamp = timestamp & layout.timestamp_max();
+        let masked_worker = self.worker_id & layout.worker_max();
+        let masked_process = self.process_id & layout.process_max();
+        let masked_sequence = sequence & layout.sequence_max();
 
-        (masked_timestamp << self.config.timestamp_shift)
-            | (masked_worker << self.config.worker_shift)
-            | (masked_process << self.config.process_shift)
-            | (masked_sequence << self.config.sequence_shift)
+        (masked_timestamp << layout.timestamp_shift())
+            | (masked_worker << layout.worker_shift())
+            | (masked_process << layout.process_shift())
+            | (masked_sequence << layout.sequence_shift())
     }
 
     /// Helper method for waiting until next millisecond
@@ -169,22 +170,26 @@ impl Generator {
 
     /// Extract just the timestamp component from an ID
     pub fn extract_timestamp(&self, id: u64) -> u64 {
-        (id >> self.config.timestamp_shift) & self.config.timestamp_mask
+        let layout = &self.config.layout;
+        (id >> layout.timestamp_shift()) & layout.timestamp_max()
     }
 
     /// Extract just the worker ID component from an ID
     pub fn extract_worker_id(&self, id: u64) -> u64 {
-        (id >> self.config.worker_shift) & self.config.worker_mask
+        let layout = &self.config.layout;
+        (id >> layout.worker_shift()) & layout.worker_max()
     }
 
     /// Extract just the process ID component from an ID
     pub fn extract_process_id(&self, id: u64) -> u64 {
-        (id >> self.config.process_shift) & self.config.process_mask
+        let layout = &self.config.layout;
+        (id >> layout.process_shift()) & layout.process_max()
     }
 
     /// Extract just the sequence component from an ID
     pub fn extract_sequence(&self, id: u64) -> u64 {
-        (id >> self.config.sequence_shift) & self.config.sequence_mask
+        let layout = &self.config.layout;
+        (id >> layout.sequence_shift()) & layout.sequence_max()
     }
 
     /// Compose an ID from individual components
@@ -195,21 +200,23 @@ impl Generator {
         process_id: u64,
         sequence: u64,
     ) -> u64 {
-        let masked_timestamp = timestamp & self.config.timestamp_mask;
-        let masked_worker = worker_id & self.config.worker_mask;
-        let masked_process = process_id & self.config.process_mask;
-        let masked_sequence = sequence & self.config.sequence_mask;
+        let layout = &self.config.layout;
+        let masked_timestamp = timestamp & layout.timestamp_max();
+        let masked_worker = worker_id & layout.worker_max();
+        let masked_process = process_id & layout.process_max();
+        let masked_sequence = sequence & layout.sequence_max();
 
-        (masked_timestamp << self.config.timestamp_shift)
-            | (masked_worker << self.config.worker_shift)
-            | (masked_process << self.config.process_shift)
-            | (masked_sequence << self.config.sequence_shift)
+        (masked_timestamp << layout.timestamp_shift())
+            | (masked_worker << layout.worker_shift())
+            | (masked_process << layout.process_shift())
+            | (masked_sequence << layout.sequence_shift())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::BitLayout;
     use crate::Config;
 
     #[test]
@@ -243,7 +250,7 @@ mod tests {
         assert_eq!(components.worker_id, 10);
         assert_eq!(components.process_id, 2);
         assert!(components.timestamp > 0);
-        assert!(components.sequence < config.sequence_mask);
+        assert!(components.sequence <= config.layout.sequence_max());
     }
 
     #[test]
@@ -264,7 +271,7 @@ mod tests {
     fn max_value_composition_and_overflow() {
         // Test compose/decompose with maximum values for custom config
         let config = Config::new(
-            (42, 8, 4, 10), // 42 timestamp, 8 worker, 4 process, 10 sequence
+            BitLayout::new(42, 8, 4, 10), // 42 timestamp, 8 worker, 4 process, 10 sequence
             1_500_000_000_000,
         );
         let generator = Generator::new(config, 0, 0).unwrap();
@@ -274,7 +281,8 @@ mod tests {
         let max_process = (1u64 << 4) - 1; // 15
         let max_sequence = (1u64 << 10) - 1; // 1023
 
-        let composed = generator.compose_custom(max_timestamp, max_worker, max_process, max_sequence);
+        let composed =
+            generator.compose_custom(max_timestamp, max_worker, max_process, max_sequence);
         let (dec_timestamp, dec_worker, dec_process, dec_sequence) = generator.decompose(composed);
 
         // Verify all components are preserved correctly

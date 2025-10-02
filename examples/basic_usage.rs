@@ -1,10 +1,14 @@
+use typedflake::{BitLayout, Config};
+
 // Create ID types with default configuration
 typedflake::id!(UserId);
 typedflake::id!(OrderId);
 
 // Create ID type with custom configuration
-const CUSTOM_CONFIG: typedflake::Config =
-    typedflake::Config::new((42, 5, 5, 12), 1_600_000_000_000);
+const CUSTOM_CONFIG: Config = Config::new(
+    BitLayout::new(42, 5, 5, 12),
+    1759359576000, // October 1, 2025 10:59:36 PM
+);
 
 typedflake::id!(SessionId, CUSTOM_CONFIG);
 

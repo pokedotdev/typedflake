@@ -18,13 +18,13 @@ impl State {
 
     /// Pack timestamp and sequence into single u64
     pub fn pack_state(&self, timestamp: u64, sequence: u64, config: Config) -> u64 {
-        (timestamp << config.sequence_bits) | (sequence & config.sequence_mask)
+        (timestamp << config.layout.sequence) | (sequence & config.layout.sequence_max())
     }
 
     /// Unpack timestamp and sequence from single u64
     pub fn unpack_state(&self, packed: u64, config: Config) -> (u64, u64) {
-        let timestamp = packed >> config.sequence_bits;
-        let sequence = packed & config.sequence_mask;
+        let timestamp = packed >> config.layout.sequence;
+        let sequence = packed & config.layout.sequence_max();
         (timestamp, sequence)
     }
 }
@@ -48,8 +48,8 @@ impl StatePool {
     /// Create with pre-allocated states for all possible (worker_id, process_id) combinations
     pub fn new(config: Config) -> Self {
         // Calculate total size based on bit allocation
-        let max_workers = config.worker_mask + 1;
-        let max_processes = config.process_mask + 1;
+        let max_workers = config.layout.worker_max() + 1;
+        let max_processes = config.layout.process_max() + 1;
         let total_size = (max_workers * max_processes) as usize;
 
         Self {
@@ -63,13 +63,13 @@ impl StatePool {
     /// Compute array index using mathematical formula based on config values
     #[inline]
     fn compute_index(&self, worker_id: u64, process_id: u64) -> usize {
-        // Use pre-calculated masks from config for bounds safety
-        let masked_worker = worker_id & self.config.worker_mask;
-        let masked_process = process_id & self.config.process_mask;
+        // Use max values from config for bounds safety
+        let masked_worker = worker_id & self.config.layout.worker_max();
+        let masked_process = process_id & self.config.layout.process_max();
 
         // Mathematical mapping: index = worker_id * max_processes + process_id
         // This uses the same shift logic as ID composition but for indexing
-        let index = (masked_worker << self.config.process_bits) | masked_process;
+        let index = (masked_worker << self.config.layout.process) | masked_process;
         index as usize
     }
 

@@ -121,7 +121,7 @@ macro_rules! id {
 
 #[cfg(test)]
 mod tests {
-    use crate::Config;
+    use crate::{BitLayout, Config};
 
     #[test]
     fn macro_generates_default_config() {
@@ -142,8 +142,8 @@ mod tests {
     #[test]
     fn macro_with_custom_config() {
         const CUSTOM_CONFIG: Config = Config::new(
-            (42, 8, 4, 10),    // bits: timestamp, worker, process, sequence
-            1_600_000_000_000, // epoch
+            BitLayout::new(42, 8, 4, 10), // bits: timestamp, worker, process, sequence
+            1_600_000_000_000,            // epoch
         );
 
         crate::id!(CustomId, CUSTOM_CONFIG);
@@ -256,7 +256,8 @@ mod tests {
 
     #[test]
     fn instance_convenience_methods() {
-        const CUSTOM_ALGORITHM: Config = Config::new((42, 8, 4, 10), 1_600_000_000_000);
+        const CUSTOM_ALGORITHM: Config =
+            Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
 
         crate::id!(InstanceMethodId, CUSTOM_ALGORITHM);
 

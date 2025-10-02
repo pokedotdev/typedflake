@@ -2,7 +2,7 @@ use typedflake::Config;
 
 // Discord's configuration
 const DISCORD_CONFIG: Config = Config::new(
-    (42, 5, 5, 12),
+    typedflake::BitLayout::new(42, 5, 5, 12),
     1_420_070_400_000, // The first second of 2015
 );
 

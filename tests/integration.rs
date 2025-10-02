@@ -6,7 +6,10 @@ fn custom_config_with_defaults() {
     // Custom config: 42 timestamp, 8 worker bits (max 255), 4 process bits (max 15), 10 sequence bits
     typedflake::id!(
         CustomConfigId,
-        Config::new((42, 8, 4, 10), 1_500_000_000_000)
+        Config::new(
+            typedflake::BitLayout::new(42, 8, 4, 10),
+            1_500_000_000_000
+        )
     );
 
     let id = CustomConfigId::generate().unwrap();
@@ -34,7 +37,10 @@ fn sequence_exhaustion_and_recovery() {
     // Use config with very small sequence bits to force exhaustion (4 bits = max 15 IDs/ms)
     typedflake::id!(
         SmallSeqId,
-        Config::new((50, 5, 5, 4), Config::DEFAULT_EPOCH_MS)
+        Config::new(
+            typedflake::BitLayout::new(50, 5, 5, 4),
+            Config::DEFAULT_EPOCH_MS
+        )
     );
 
     let instance = SmallSeqId::instance(1, 1).unwrap();
