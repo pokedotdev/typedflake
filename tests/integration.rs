@@ -6,10 +6,7 @@ fn custom_config_with_defaults() {
     // Custom config: 42 timestamp, 8 worker bits (max 255), 4 process bits (max 15), 10 sequence bits
     typedflake::id!(
         CustomConfigId,
-        Config::new(
-            typedflake::BitLayout::new(42, 8, 4, 10),
-            1_500_000_000_000
-        )
+        Config::new(typedflake::BitLayout::new(42, 8, 4, 10), 1_500_000_000_000)
     );
 
     let id = CustomConfigId::generate().unwrap();

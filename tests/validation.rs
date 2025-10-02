@@ -18,12 +18,13 @@ fn zero_process_bits() {
     assert_eq!(components.process_id, 0);
 
     // Ensure compose/decompose works correctly
-    let composed = ZeroProcessId::compose(
+    let composed = ZeroProcessId::compose_custom(
         components.timestamp,
         components.worker_id,
         components.process_id,
         components.sequence,
-    );
+    )
+    .unwrap();
     assert_eq!(id.as_u64(), composed.as_u64());
 
     // Test worker method (process should default to 0)
@@ -63,11 +64,12 @@ fn zero_worker_bits() {
     assert_eq!(process_id.process_id(), 500);
 
     // Verify composition/decomposition works
-    let composed = ZeroWorkerBitsId::compose(
+    let composed = ZeroWorkerBitsId::compose_custom(
         components.timestamp,
         components.worker_id,
         components.process_id,
         components.sequence,
-    );
+    )
+    .unwrap();
     assert_eq!(id.as_u64(), composed.as_u64());
 }

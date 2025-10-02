@@ -10,11 +10,32 @@
 //! ## Features
 //!
 //! - **Type-safe ID generation**: Each ID type is a distinct newtype
+//! - **Validated by default**: All constructors validate component ranges following newtype best practices
 //! - **Customizable bit allocation**: Configure timestamp, worker, process, and sequence bits
 //! - **Custom epoch support**: Set your own epoch for timestamp calculation
 //! - **Thread-safe**: Each ID type maintains its own independent generator state
 //! - **Zero-cost abstractions**: Pre-calculated shifts and masks for optimal performance
 //! - **Flexible configuration**: Runtime builder pattern or compile-time const creation
+//!
+//! ## Validation Philosophy
+//!
+//! TypedFlake follows the newtype pattern principle: "design datatypes that are always valid."
+//! All ID construction methods validate that components are within configured bit limits:
+//!
+//! ```rust
+//! # typedflake::id!(UserId);
+//! // ✅ Validated constructors (preferred)
+//! let id = UserId::try_from_u64(raw_value)?;                          // From raw u64
+//! let id: UserId = raw_value.try_into()?;                             // Via TryFrom
+//! let id = UserId::compose(ts, seq)?;                                 // Timestamp + sequence
+//! let id = UserId::compose_custom(ts2, worker, process, seq2)?;       // All components
+//! let id: UserId = "12345".parse()?;                                  // From string
+//!
+//! // ⚠️ Unchecked constructors (performance-critical paths only)
+//! let id = UserId::from_u64_unchecked(raw_value);                     // No validation
+//! let id = UserId::compose_unchecked(ts, seq);                        // No validation
+//! let id = UserId::compose_custom_unchecked(ts2, worker, process, seq2); // No validation
+//! ```
 //!
 //! ## Quick Start
 //!
@@ -88,13 +109,13 @@
 //! ## ID Operations
 //!
 //! ```rust
-//! # use typedflake::Config;
 //! # typedflake::id!(ExampleId);
 //! let id = ExampleId::generate().unwrap();
 //!
 //! // Convert to/from u64
 //! let raw: u64 = id.as_u64();
-//! let id2 = ExampleId::from_u64(raw);
+//! let id2 = ExampleId::from_u64_unchecked(raw); // Unchecked for trusted data
+//! let id3 = ExampleId::try_from_u64(raw).unwrap(); // Validated for external data
 //!
 //! // Decompose into components
 //! let (timestamp, worker_id, process_id, sequence) = id.decompose();
@@ -107,7 +128,7 @@
 //! let sequence = id.sequence();
 //!
 //! // Compose from components
-//! let composed_id = ExampleId::compose(timestamp, worker_id, process_id, sequence);
+//! let composed_id = ExampleId::compose_custom(timestamp, worker_id, process_id, sequence)?;
 //! ```
 
 pub mod config;

@@ -278,9 +278,15 @@ impl From<(u8, u8, u8, u8)> for BitLayout {
     }
 }
 
-/// Validation error for worker_id and process_id bounds checking
+/// Validation error for component bounds checking
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ValidationError {
+    #[error("Timestamp {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    TimestampOutOfRange {
+        provided: u64,
+        maximum: u64,
+        bits: u8,
+    },
     #[error("Worker ID {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
     WorkerIdOutOfRange {
         provided: u64,
@@ -293,6 +299,14 @@ pub enum ValidationError {
         maximum: u64,
         bits: u8,
     },
+    #[error("Sequence {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    SequenceOutOfRange {
+        provided: u64,
+        maximum: u64,
+        bits: u8,
+    },
+    #[error("Invalid ID format: {0}")]
+    ParseError(String),
 }
 
 /// Configuration - contains bit allocation (via BitLayout) and epoch
@@ -347,6 +361,55 @@ impl Config {
             });
         }
         Ok(())
+    }
+
+    /// Validate all ID components against bit limits
+    pub fn validate_components(
+        &self,
+        timestamp: u64,
+        worker_id: u64,
+        process_id: u64,
+        sequence: u64,
+    ) -> Result<(), ValidationError> {
+        if timestamp > self.layout.timestamp_max() {
+            return Err(ValidationError::TimestampOutOfRange {
+                provided: timestamp,
+                maximum: self.layout.timestamp_max(),
+                bits: self.layout.timestamp,
+            });
+        }
+        if worker_id > self.layout.worker_max() {
+            return Err(ValidationError::WorkerIdOutOfRange {
+                provided: worker_id,
+                maximum: self.layout.worker_max(),
+                bits: self.layout.worker,
+            });
+        }
+        if process_id > self.layout.process_max() {
+            return Err(ValidationError::ProcessIdOutOfRange {
+                provided: process_id,
+                maximum: self.layout.process_max(),
+                bits: self.layout.process,
+            });
+        }
+        if sequence > self.layout.sequence_max() {
+            return Err(ValidationError::SequenceOutOfRange {
+                provided: sequence,
+                maximum: self.layout.sequence_max(),
+                bits: self.layout.sequence,
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate a raw u64 ID by decomposing and checking component ranges
+    pub fn validate_id(&self, id: u64) -> Result<(), ValidationError> {
+        let timestamp = (id >> self.layout.timestamp_shift()) & self.layout.timestamp_max();
+        let worker_id = (id >> self.layout.worker_shift()) & self.layout.worker_max();
+        let process_id = (id >> self.layout.process_shift()) & self.layout.process_max();
+        let sequence = (id >> self.layout.sequence_shift()) & self.layout.sequence_max();
+
+        self.validate_components(timestamp, worker_id, process_id, sequence)
     }
 }
 
@@ -471,5 +534,98 @@ mod tests {
         } else {
             panic!("Expected ProcessIdOutOfRange error");
         }
+    }
+
+    #[test]
+    fn validate_components_success() {
+        let layout = BitLayout::new(42, 8, 4, 10);
+        let config = Config::new(layout, 1_600_000_000_000);
+
+        // Valid at boundaries
+        let max_timestamp = (1u64 << 42) - 1;
+        let max_worker = (1u64 << 8) - 1;
+        let max_process = (1u64 << 4) - 1;
+        let max_sequence = (1u64 << 10) - 1;
+
+        assert!(
+            config
+                .validate_components(max_timestamp, max_worker, max_process, max_sequence)
+                .is_ok()
+        );
+
+        // Valid at zero
+        assert!(config.validate_components(0, 0, 0, 0).is_ok());
+
+        // Valid at typical values
+        assert!(config.validate_components(1000000, 50, 5, 100).is_ok());
+    }
+
+    #[test]
+    fn validate_components_errors() {
+        let layout = BitLayout::new(42, 8, 4, 10);
+        let config = Config::new(layout, 1_600_000_000_000);
+
+        // Timestamp overflow
+        let timestamp_err = config.validate_components(1u64 << 42, 0, 0, 0);
+        assert!(matches!(
+            timestamp_err,
+            Err(ValidationError::TimestampOutOfRange { .. })
+        ));
+
+        // Worker overflow
+        let worker_err = config.validate_components(0, 256, 0, 0);
+        assert!(matches!(
+            worker_err,
+            Err(ValidationError::WorkerIdOutOfRange { .. })
+        ));
+
+        // Process overflow
+        let process_err = config.validate_components(0, 0, 16, 0);
+        assert!(matches!(
+            process_err,
+            Err(ValidationError::ProcessIdOutOfRange { .. })
+        ));
+
+        // Sequence overflow
+        let sequence_err = config.validate_components(0, 0, 0, 1024);
+        assert!(matches!(
+            sequence_err,
+            Err(ValidationError::SequenceOutOfRange { .. })
+        ));
+    }
+
+    #[test]
+    fn validate_id_from_raw_u64() {
+        let layout = BitLayout::new(42, 8, 4, 10);
+        let config = Config::new(layout, 1_600_000_000_000);
+
+        // Create a valid ID manually
+        let timestamp = 1000u64;
+        let worker_id = 50u64;
+        let process_id = 5u64;
+        let sequence = 100u64;
+
+        let valid_id = (timestamp << layout.timestamp_shift())
+            | (worker_id << layout.worker_shift())
+            | (process_id << layout.process_shift())
+            | (sequence << layout.sequence_shift());
+
+        assert!(config.validate_id(valid_id).is_ok());
+
+        // Zero ID should be valid
+        assert!(config.validate_id(0).is_ok());
+
+        // Maximum valid ID - create with all components at their max values
+        let max_timestamp = (1u64 << 42) - 1;
+        let max_worker = (1u64 << 8) - 1;
+        let max_process = (1u64 << 4) - 1;
+        let max_sequence = (1u64 << 10) - 1;
+
+        let max_valid_id = (max_timestamp << layout.timestamp_shift())
+            | (max_worker << layout.worker_shift())
+            | (max_process << layout.process_shift())
+            | (max_sequence << layout.sequence_shift());
+
+        assert!(config.validate_id(max_valid_id).is_ok());
     }
 }

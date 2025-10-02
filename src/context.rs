@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 /// Context for ID type - holds config, state pool, and default generator
 pub struct IdContext {
-    config: Config,
+    pub config: Config,
     states: StatePool,
     default_generator: OnceLock<Generator>,
 }

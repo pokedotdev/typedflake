@@ -69,7 +69,7 @@ fn main() {
 
     // Show composition
     println!("\n6. Composition:");
-    let composed_id = UserId::compose(timestamp, worker_id, process_id, sequence);
+    let composed_id = UserId::compose_custom(timestamp, worker_id, process_id, sequence).unwrap();
     println!("Recomposed User ID: {composed_id}");
     println!(
         "Original equals recomposed: {}",
@@ -79,7 +79,7 @@ fn main() {
     // Show conversions
     println!("\n7. Conversions:");
     let raw_value = user_id.as_u64();
-    let from_raw = UserId::from_u64(raw_value);
+    let from_raw = UserId::from_u64_unchecked(raw_value);
     println!("Raw value: {raw_value}");
     println!("From raw:  {from_raw}");
     println!("Equal to original: {}", user_id == from_raw);
@@ -104,6 +104,43 @@ fn main() {
             "Timestamp: {timestamp} | Worker ID: {worker_id} | Process ID: {process_id} | Sequence: {sequence}",
         );
     }
+
+    // Show validation from external sources
+    println!("\n10. Validation (Newtype Safety):");
+
+    // Simulating ID from database/API
+    let db_value = user_id.as_u64();
+
+    // ✅ Validated construction (preferred for external data)
+    match UserId::try_from_u64(db_value) {
+        Ok(validated_id) => println!("Valid ID from database: {validated_id}"),
+        Err(e) => println!("Invalid ID from database: {e}"),
+    }
+
+    // ✅ TryFrom trait
+    let converted: Result<UserId, _> = db_value.try_into();
+    println!("TryFrom conversion: {}", converted.is_ok());
+
+    // ⚠️ Unchecked construction (performance-critical only)
+    let unchecked_id = UserId::from_u64_unchecked(db_value);
+    println!("Unchecked ID (trusted source): {unchecked_id}");
+
+    // Show validation errors
+    println!("\n11. Validation Errors:");
+    let (ts, _w, p, s) = user_id.decompose();
+
+    // This will fail validation (worker_id out of range)
+    match UserId::compose_custom(ts, 999, p, s) {
+        Ok(_) => println!("Composed successfully"),
+        Err(e) => println!("Composition failed: {e}"),
+    }
+
+    // This will silently mask (unchecked)
+    let masked_id = UserId::compose_custom_unchecked(ts, 999, p, s);
+    println!(
+        "Unchecked composition masks overflow: worker_id={}",
+        masked_id.worker_id()
+    );
 
     println!("\n=== Demo Complete ===");
 }

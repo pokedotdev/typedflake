@@ -30,14 +30,15 @@ fn benchmark_compose_decompose(c: &mut Criterion) {
     let id = BenchId::generate_blocking();
     let (timestamp, worker_id, process_id, sequence) = id.decompose();
 
-    c.bench_function("compose_operation", |b| {
+    c.bench_function("compose_custom_operation", |b| {
         b.iter(|| {
-            let composed = BenchId::compose(
+            let composed = BenchId::compose_custom(
                 black_box(timestamp),
                 black_box(worker_id),
                 black_box(process_id),
                 black_box(sequence),
-            );
+            )
+            .unwrap();
             black_box(composed)
         })
     });
@@ -106,10 +107,47 @@ fn benchmark_conversions(c: &mut Criterion) {
         })
     });
 
-    c.bench_function("from_u64_conversion", |b| {
+    c.bench_function("from_u64_unchecked_conversion", |b| {
         b.iter(|| {
-            let id = BenchId::from_u64(black_box(raw));
+            let id = BenchId::from_u64_unchecked(black_box(raw));
             black_box(id)
+        })
+    });
+
+    c.bench_function("try_from_u64_validated", |b| {
+        b.iter(|| {
+            let id = BenchId::try_from_u64(black_box(raw)).unwrap();
+            black_box(id)
+        })
+    });
+}
+
+fn benchmark_validation(c: &mut Criterion) {
+    let id = BenchId::generate_blocking();
+    let (timestamp, worker_id, process_id, sequence) = id.decompose();
+
+    c.bench_function("compose_custom_validated", |b| {
+        b.iter(|| {
+            let composed = BenchId::compose_custom(
+                black_box(timestamp),
+                black_box(worker_id),
+                black_box(process_id),
+                black_box(sequence),
+            )
+            .unwrap();
+            black_box(composed)
+        })
+    });
+
+    c.bench_function("compose_custom_unchecked", |b| {
+        b.iter(|| {
+            let composed = BenchId::compose_custom_unchecked(
+                black_box(timestamp),
+                black_box(worker_id),
+                black_box(process_id),
+                black_box(sequence),
+            );
+            black_box(composed)
         })
     });
 }
@@ -121,6 +159,7 @@ criterion_group!(
     benchmark_compose_decompose,
     benchmark_component_access,
     benchmark_blocking_generation,
-    benchmark_conversions
+    benchmark_conversions,
+    benchmark_validation
 );
 criterion_main!(benches);

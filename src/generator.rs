@@ -90,7 +90,7 @@ impl Generator {
                 Ordering::Relaxed,
             ) {
                 Ok(_) => {
-                    let id = self.compose_id(new_timestamp, new_sequence);
+                    let id = self.compose_unchecked(new_timestamp, new_sequence);
                     return Ok(id);
                 }
                 Err(_) => continue,
@@ -111,9 +111,30 @@ impl Generator {
         }
     }
 
-    /// Compose ID using injected worker_id and process_id
+    /// Compose ID using generator's bound worker_id and process_id with validation
+    pub fn compose(&self, timestamp: u64, sequence: u64) -> Result<u64, ValidationError> {
+        // Validate timestamp and sequence (worker/process already validated at construction)
+        if timestamp > self.config.layout.timestamp_max() {
+            return Err(ValidationError::TimestampOutOfRange {
+                provided: timestamp,
+                maximum: self.config.layout.timestamp_max(),
+                bits: self.config.layout.timestamp,
+            });
+        }
+        if sequence > self.config.layout.sequence_max() {
+            return Err(ValidationError::SequenceOutOfRange {
+                provided: sequence,
+                maximum: self.config.layout.sequence_max(),
+                bits: self.config.layout.sequence,
+            });
+        }
+        Ok(self.compose_unchecked(timestamp, sequence))
+    }
+
+    /// Compose ID using generator's bound worker_id and process_id without validation.
+    /// Timestamp and sequence values exceeding bit limits will be silently masked.
     #[inline]
-    fn compose_id(&self, timestamp: u64, sequence: u64) -> u64 {
+    pub fn compose_unchecked(&self, timestamp: u64, sequence: u64) -> u64 {
         let layout = &self.config.layout;
         let masked_timestamp = timestamp & layout.timestamp_max();
         let masked_worker = self.worker_id & layout.worker_max();
@@ -192,8 +213,22 @@ impl Generator {
         (id >> layout.sequence_shift()) & layout.sequence_max()
     }
 
-    /// Compose an ID from individual components
+    /// Compose an ID from individual components with validation
     pub fn compose_custom(
+        &self,
+        timestamp: u64,
+        worker_id: u64,
+        process_id: u64,
+        sequence: u64,
+    ) -> Result<u64, ValidationError> {
+        self.config
+            .validate_components(timestamp, worker_id, process_id, sequence)?;
+        Ok(self.compose_custom_unchecked(timestamp, worker_id, process_id, sequence))
+    }
+
+    /// Compose an ID from individual components without validation.
+    /// Components exceeding bit limits will be silently masked.
+    pub fn compose_custom_unchecked(
         &self,
         timestamp: u64,
         worker_id: u64,
@@ -260,7 +295,9 @@ mod tests {
 
         let id = generator.generate().unwrap();
         let (timestamp, worker_id, process_id, sequence) = generator.decompose(id);
-        let recomposed = generator.compose_custom(timestamp, worker_id, process_id, sequence);
+        let recomposed = generator
+            .compose_custom(timestamp, worker_id, process_id, sequence)
+            .unwrap();
 
         assert_eq!(id, recomposed);
         assert_eq!(worker_id, 15);
@@ -281,8 +318,9 @@ mod tests {
         let max_process = (1u64 << 4) - 1; // 15
         let max_sequence = (1u64 << 10) - 1; // 1023
 
-        let composed =
-            generator.compose_custom(max_timestamp, max_worker, max_process, max_sequence);
+        let composed = generator
+            .compose_custom(max_timestamp, max_worker, max_process, max_sequence)
+            .unwrap();
         let (dec_timestamp, dec_worker, dec_process, dec_sequence) = generator.decompose(composed);
 
         // Verify all components are preserved correctly
@@ -294,9 +332,9 @@ mod tests {
         assert_eq!(dec_process, max_process, "Process ID should be preserved");
         assert_eq!(dec_sequence, max_sequence, "Sequence should be preserved");
 
-        // Verify bit masking handles overflow correctly
+        // Verify bit masking handles overflow correctly (use unchecked for intentional overflow)
         let overflow_timestamp = 1u64 << 50; // More than 42 bits
-        let overflow_composed = generator.compose_custom(overflow_timestamp, 0, 0, 0);
+        let overflow_composed = generator.compose_custom_unchecked(overflow_timestamp, 0, 0, 0);
         let overflow_dec = generator.decompose(overflow_composed);
 
         // Should be masked to 42 bits

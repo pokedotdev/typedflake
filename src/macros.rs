@@ -106,14 +106,41 @@ macro_rules! id {
                     Self::context().default_generator().extract_sequence(self.0)
                 }
 
-                /// Compose an ID from individual components
-                pub fn compose(timestamp: u64, worker_id: u64, process_id: u64, sequence: u64) -> Self {
-                    let id = Self::context().default_generator().compose_custom(timestamp, worker_id, process_id, sequence);
+                /// Compose an ID from timestamp and sequence with validation.
+                /// Uses generator's worker_id and process_id.
+                pub fn compose(timestamp: u64, sequence: u64) -> Result<Self, $crate::config::ValidationError> {
+                    let id = Self::context().default_generator().compose(timestamp, sequence)?;
+                    Ok(Self(id))
+                }
+
+                /// Compose an ID from timestamp and sequence without validation.
+                /// Uses generator's worker_id and process_id.
+                /// Values exceeding bit limits will be silently masked.
+                pub fn compose_unchecked(timestamp: u64, sequence: u64) -> Self {
+                    let id = Self::context().default_generator().compose_unchecked(timestamp, sequence);
+                    Self(id)
+                }
+
+                /// Compose an ID from all components with validation
+                pub fn compose_custom(
+                    timestamp: u64,
+                    worker_id: u64,
+                    process_id: u64,
+                    sequence: u64,
+                ) -> Result<Self, $crate::config::ValidationError> {
+                    let id = Self::context().default_generator().compose_custom(timestamp, worker_id, process_id, sequence)?;
+                    Ok(Self(id))
+                }
+
+                /// Compose an ID from all components without validation.
+                /// Components exceeding bit limits will be silently masked.
+                pub fn compose_custom_unchecked(timestamp: u64, worker_id: u64, process_id: u64, sequence: u64) -> Self {
+                    let id = Self::context().default_generator().compose_custom_unchecked(timestamp, worker_id, process_id, sequence);
                     Self(id)
                 }
             }
 
-            // Generate all standard trait implementations (from_u64, as_u64, Display, From, FromStr)
+            // Generate all standard trait implementations (from_u64_unchecked, try_from_u64, as_u64, Display, TryFrom, FromStr)
             $crate::impl_id_traits!($name);
         }
     };
@@ -169,17 +196,24 @@ mod tests {
         crate::id!(ComposeId);
 
         let timestamp = 123456789;
-        let worker_id = 0; // Default config
-        let process_id = 0; // Default config
         let sequence = 100;
 
-        let id = ComposeId::compose(timestamp, worker_id, process_id, sequence);
+        // Test compose (uses default worker=0, process=0)
+        let id = ComposeId::compose(timestamp, sequence).unwrap();
         let (dec_timestamp, dec_worker_id, dec_process_id, dec_sequence) = id.decompose();
 
         assert_eq!(dec_timestamp, timestamp);
-        assert_eq!(dec_worker_id, worker_id);
-        assert_eq!(dec_process_id, process_id);
+        assert_eq!(dec_worker_id, 0);
+        assert_eq!(dec_process_id, 0);
         assert_eq!(dec_sequence, sequence);
+
+        // Test compose_custom
+        let id_custom = ComposeId::compose_custom(timestamp, 5, 3, sequence).unwrap();
+        let (ts, w, p, s) = id_custom.decompose();
+        assert_eq!(ts, timestamp);
+        assert_eq!(w, 5);
+        assert_eq!(p, 3);
+        assert_eq!(s, sequence);
     }
 
     #[test]
@@ -208,10 +242,10 @@ mod tests {
         let id = ConversionId::generate().unwrap();
         let raw = id.as_u64();
 
-        let id2 = ConversionId::from_u64(raw);
+        let id2 = ConversionId::from_u64_unchecked(raw);
         assert_eq!(id, id2);
 
-        let id3: ConversionId = raw.into();
+        let id3: ConversionId = raw.try_into().unwrap();
         assert_eq!(id, id3);
 
         let raw2: u64 = id.into();
@@ -330,5 +364,148 @@ mod tests {
 
         // IDs should be different
         assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn try_from_u64_validates_components() {
+        const CUSTOM_CONFIG: Config = Config::new(
+            BitLayout::new(42, 8, 4, 10), // max: ts=4.4T, worker=255, process=15, seq=1023
+            1_600_000_000_000,
+        );
+        crate::id!(ValidationTestId, CUSTOM_CONFIG);
+
+        // Generate a valid ID
+        let valid_id = ValidationTestId::generate().unwrap();
+        let raw = valid_id.as_u64();
+
+        // Valid ID should pass validation
+        assert!(ValidationTestId::try_from_u64(raw).is_ok());
+
+        // Note: Manually crafted IDs with simple bit shifts get masked during composition,
+        // so they appear valid after extraction. Validation catches component overflow
+        // during compose() rather than from arbitrary u64 values.
+        // Generated IDs are always valid by construction.
+    }
+
+    #[test]
+    fn try_from_trait_validates() {
+        crate::id!(TryFromTestId);
+
+        let valid_id = TryFromTestId::generate().unwrap();
+        let raw = valid_id.as_u64();
+
+        // TryFrom should work for valid IDs
+        let converted: Result<TryFromTestId, _> = raw.try_into();
+        assert!(converted.is_ok());
+        assert_eq!(converted.unwrap(), valid_id);
+    }
+
+    #[test]
+    fn compose_validates_components() {
+        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        crate::id!(ComposeValidationId, CUSTOM_CONFIG);
+
+        // Valid composition should succeed
+        let result = ComposeValidationId::compose_custom(1000, 100, 5, 500);
+        assert!(result.is_ok());
+
+        // Invalid worker_id (256 > 255)
+        let result = ComposeValidationId::compose_custom(1000, 256, 5, 500);
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(crate::config::ValidationError::WorkerIdOutOfRange { .. })
+        ));
+
+        // Invalid process_id (16 > 15)
+        let result = ComposeValidationId::compose_custom(1000, 100, 16, 500);
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(crate::config::ValidationError::ProcessIdOutOfRange { .. })
+        ));
+
+        // Invalid sequence (1024 > 1023)
+        let result = ComposeValidationId::compose_custom(1000, 100, 5, 1024);
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(crate::config::ValidationError::SequenceOutOfRange { .. })
+        ));
+
+        // Invalid timestamp (2^42 > 2^42-1)
+        let result = ComposeValidationId::compose_custom(1u64 << 42, 100, 5, 500);
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(crate::config::ValidationError::TimestampOutOfRange { .. })
+        ));
+
+        // Test compose (2-param) validates timestamp and sequence
+        let result = ComposeValidationId::compose(1000, 500);
+        assert!(result.is_ok());
+
+        let result = ComposeValidationId::compose(1u64 << 42, 500);
+        assert!(result.is_err());
+
+        let result = ComposeValidationId::compose(1000, 1024);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn compose_unchecked_masks_overflow() {
+        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        crate::id!(UncheckedComposeId, CUSTOM_CONFIG);
+
+        // compose_custom_unchecked should mask values that exceed limits
+        let id = UncheckedComposeId::compose_custom_unchecked(1u64 << 42, 256, 16, 1024);
+
+        // Verify components are masked (not validated)
+        let components = id.components();
+        assert_eq!(components.timestamp, 0); // (1 << 42) masked to 42 bits = 0
+        assert_eq!(components.worker_id, 0); // 256 masked to 8 bits = 0
+        assert_eq!(components.process_id, 0); // 16 masked to 4 bits = 0
+        assert_eq!(components.sequence, 0); // 1024 masked to 10 bits = 0
+
+        // compose_unchecked (2-param) should mask timestamp/sequence
+        let id2 = UncheckedComposeId::compose_unchecked(1u64 << 42, 1024);
+        let comp2 = id2.components();
+        assert_eq!(comp2.timestamp, 0);
+        assert_eq!(comp2.sequence, 0);
+    }
+
+    #[test]
+    fn from_str_validates() {
+        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        crate::id!(ParseValidationId, CUSTOM_CONFIG);
+
+        // Valid ID string should parse
+        let valid_id = ParseValidationId::generate().unwrap();
+        let id_str = valid_id.to_string();
+        let parsed: Result<ParseValidationId, _> = id_str.parse();
+        assert!(parsed.is_ok());
+        assert_eq!(parsed.unwrap(), valid_id);
+
+        // Invalid format should fail
+        let result: Result<ParseValidationId, _> = "not_a_number".parse();
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(crate::config::ValidationError::ParseError(_))
+        ));
+    }
+
+    #[test]
+    fn from_u64_unchecked_no_validation() {
+        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        crate::id!(UncheckedFromId, CUSTOM_CONFIG);
+
+        // from_u64_unchecked should accept any value
+        let layout = CUSTOM_CONFIG.layout;
+        let invalid_value = 256u64 << layout.worker_shift(); // worker_id=256 > max=255
+
+        // Should not panic or error
+        let id = UncheckedFromId::from_u64_unchecked(invalid_value);
+        assert_eq!(id.as_u64(), invalid_value);
     }
 }

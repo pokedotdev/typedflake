@@ -3,9 +3,15 @@
 macro_rules! impl_id_traits {
     ($name:ident) => {
         impl $name {
-            /// Create an ID from a raw u64 value
-            pub fn from_u64(id: u64) -> Self {
+            /// Create an ID from a raw u64 value without validation.
+            pub fn from_u64_unchecked(id: u64) -> Self {
                 Self(id)
+            }
+
+            /// Create an ID from a raw u64 value with validation.
+            pub fn try_from_u64(id: u64) -> Result<Self, $crate::config::ValidationError> {
+                Self::context().config.validate_id(id)?;
+                Ok(Self(id))
             }
 
             /// Get the raw u64 value of this ID
@@ -20,9 +26,11 @@ macro_rules! impl_id_traits {
             }
         }
 
-        impl From<u64> for $name {
-            fn from(id: u64) -> Self {
-                Self(id)
+        impl std::convert::TryFrom<u64> for $name {
+            type Error = $crate::config::ValidationError;
+
+            fn try_from(id: u64) -> Result<Self, Self::Error> {
+                Self::try_from_u64(id)
             }
         }
 
@@ -33,11 +41,13 @@ macro_rules! impl_id_traits {
         }
 
         impl std::str::FromStr for $name {
-            type Err = std::num::ParseIntError;
+            type Err = $crate::config::ValidationError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                let id = s.parse::<u64>()?;
-                Ok(Self(id))
+                let id = s
+                    .parse::<u64>()
+                    .map_err(|e| $crate::config::ValidationError::ParseError(e.to_string()))?;
+                Self::try_from_u64(id)
             }
         }
     };
