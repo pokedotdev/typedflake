@@ -10,7 +10,7 @@ macro_rules! impl_id_traits {
 
             /// Create an ID from a raw u64 value with validation.
             pub fn try_from_u64(id: u64) -> Result<Self, $crate::config::ValidationError> {
-                Self::context().config.validate_id(id)?;
+                Self::context().config().validate_id(id)?;
                 Ok(Self(id))
             }
 

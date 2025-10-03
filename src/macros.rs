@@ -505,7 +505,7 @@ mod tests {
         crate::id!(UncheckedFromId, CUSTOM_CONFIG);
 
         // from_u64_unchecked should accept any value
-        let layout = CUSTOM_CONFIG.layout;
+        let layout = CUSTOM_CONFIG.layout();
         let invalid_value = 256u64 << layout.worker_shift(); // worker_id=256 > max=255
 
         // Should not panic or error

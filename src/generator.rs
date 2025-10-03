@@ -67,7 +67,7 @@ impl Generator {
             let timestamp = current_timestamp.max(last_timestamp);
 
             let (new_timestamp, new_sequence) = if timestamp == last_timestamp {
-                if current_sequence >= self.config.layout.sequence_max() {
+                if current_sequence >= self.config.layout().sequence_max() {
                     return Err(GeneratorError::SequenceExhausted {
                         timestamp,
                         worker_id: self.worker_id,
@@ -114,18 +114,18 @@ impl Generator {
     /// Compose ID using generator's bound worker_id and process_id with validation
     pub fn compose(&self, timestamp: u64, sequence: u64) -> Result<u64, ValidationError> {
         // Validate timestamp and sequence (worker/process already validated at construction)
-        if timestamp > self.config.layout.timestamp_max() {
+        if timestamp > self.config.layout().timestamp_max() {
             return Err(ValidationError::TimestampOutOfRange {
                 provided: timestamp,
-                maximum: self.config.layout.timestamp_max(),
-                bits: self.config.layout.timestamp(),
+                maximum: self.config.layout().timestamp_max(),
+                bits: self.config.layout().timestamp(),
             });
         }
-        if sequence > self.config.layout.sequence_max() {
+        if sequence > self.config.layout().sequence_max() {
             return Err(ValidationError::SequenceOutOfRange {
                 provided: sequence,
-                maximum: self.config.layout.sequence_max(),
-                bits: self.config.layout.sequence(),
+                maximum: self.config.layout().sequence_max(),
+                bits: self.config.layout().sequence(),
             });
         }
         Ok(self.compose_unchecked(timestamp, sequence))
@@ -135,7 +135,7 @@ impl Generator {
     /// Timestamp and sequence values exceeding bit limits will be silently masked.
     #[inline]
     pub fn compose_unchecked(&self, timestamp: u64, sequence: u64) -> u64 {
-        let layout = &self.config.layout;
+        let layout = self.config.layout();
         let masked_timestamp = timestamp & layout.timestamp_max();
         let masked_worker = self.worker_id & layout.worker_max();
         let masked_process = self.process_id & layout.process_max();
@@ -191,25 +191,25 @@ impl Generator {
 
     /// Extract just the timestamp component from an ID
     pub fn extract_timestamp(&self, id: u64) -> u64 {
-        let layout = &self.config.layout;
+        let layout = self.config.layout();
         (id >> layout.timestamp_shift()) & layout.timestamp_max()
     }
 
     /// Extract just the worker ID component from an ID
     pub fn extract_worker_id(&self, id: u64) -> u64 {
-        let layout = &self.config.layout;
+        let layout = self.config.layout();
         (id >> layout.worker_shift()) & layout.worker_max()
     }
 
     /// Extract just the process ID component from an ID
     pub fn extract_process_id(&self, id: u64) -> u64 {
-        let layout = &self.config.layout;
+        let layout = self.config.layout();
         (id >> layout.process_shift()) & layout.process_max()
     }
 
     /// Extract just the sequence component from an ID
     pub fn extract_sequence(&self, id: u64) -> u64 {
-        let layout = &self.config.layout;
+        let layout = self.config.layout();
         (id >> layout.sequence_shift()) & layout.sequence_max()
     }
 
@@ -235,7 +235,7 @@ impl Generator {
         process_id: u64,
         sequence: u64,
     ) -> u64 {
-        let layout = &self.config.layout;
+        let layout = self.config.layout();
         let masked_timestamp = timestamp & layout.timestamp_max();
         let masked_worker = worker_id & layout.worker_max();
         let masked_process = process_id & layout.process_max();
@@ -286,7 +286,7 @@ mod tests {
         assert_eq!(components.worker_id, 10);
         assert_eq!(components.process_id, 2);
         assert!(components.timestamp > 0);
-        assert!(components.sequence <= config.layout.sequence_max());
+        assert!(components.sequence <= config.layout().sequence_max());
     }
 
     #[test]

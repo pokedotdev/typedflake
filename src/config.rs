@@ -519,10 +519,8 @@ pub enum ValidationError {
 /// using const fn methods, enabling compile-time evaluation while eliminating duplication.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Config {
-    /// Bit allocation configuration
-    pub layout: BitLayout,
-    /// Epoch timestamp
-    pub epoch: Epoch,
+    layout: BitLayout,
+    epoch: Epoch,
 }
 
 impl Config {
@@ -531,13 +529,23 @@ impl Config {
         Config { layout, epoch }
     }
 
+    /// Get the bit layout configuration
+    pub const fn layout(&self) -> BitLayout {
+        self.layout
+    }
+
+    /// Get the epoch timestamp
+    pub const fn epoch(&self) -> Epoch {
+        self.epoch
+    }
+
     /// Get current timestamp relative to epoch
     pub(crate) fn current_timestamp_ms(&self) -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
             .as_millis() as u64
-            - self.epoch.as_millis()
+            - self.epoch().as_millis()
     }
 
     /// Validate worker_id/process_id against bit limits
@@ -546,18 +554,18 @@ impl Config {
         worker_id: u64,
         process_id: u64,
     ) -> Result<(), ValidationError> {
-        if worker_id > self.layout.worker_max() {
+        if worker_id > self.layout().worker_max() {
             return Err(ValidationError::WorkerIdOutOfRange {
                 provided: worker_id,
-                maximum: self.layout.worker_max(),
-                bits: self.layout.worker(),
+                maximum: self.layout().worker_max(),
+                bits: self.layout().worker(),
             });
         }
-        if process_id > self.layout.process_max() {
+        if process_id > self.layout().process_max() {
             return Err(ValidationError::ProcessIdOutOfRange {
                 provided: process_id,
-                maximum: self.layout.process_max(),
-                bits: self.layout.process(),
+                maximum: self.layout().process_max(),
+                bits: self.layout().process(),
             });
         }
         Ok(())
@@ -571,32 +579,32 @@ impl Config {
         process_id: u64,
         sequence: u64,
     ) -> Result<(), ValidationError> {
-        if timestamp > self.layout.timestamp_max() {
+        if timestamp > self.layout().timestamp_max() {
             return Err(ValidationError::TimestampOutOfRange {
                 provided: timestamp,
-                maximum: self.layout.timestamp_max(),
-                bits: self.layout.timestamp(),
+                maximum: self.layout().timestamp_max(),
+                bits: self.layout().timestamp(),
             });
         }
-        if worker_id > self.layout.worker_max() {
+        if worker_id > self.layout().worker_max() {
             return Err(ValidationError::WorkerIdOutOfRange {
                 provided: worker_id,
-                maximum: self.layout.worker_max(),
-                bits: self.layout.worker(),
+                maximum: self.layout().worker_max(),
+                bits: self.layout().worker(),
             });
         }
-        if process_id > self.layout.process_max() {
+        if process_id > self.layout().process_max() {
             return Err(ValidationError::ProcessIdOutOfRange {
                 provided: process_id,
-                maximum: self.layout.process_max(),
-                bits: self.layout.process(),
+                maximum: self.layout().process_max(),
+                bits: self.layout().process(),
             });
         }
-        if sequence > self.layout.sequence_max() {
+        if sequence > self.layout().sequence_max() {
             return Err(ValidationError::SequenceOutOfRange {
                 provided: sequence,
-                maximum: self.layout.sequence_max(),
-                bits: self.layout.sequence(),
+                maximum: self.layout().sequence_max(),
+                bits: self.layout().sequence(),
             });
         }
         Ok(())
@@ -604,10 +612,10 @@ impl Config {
 
     /// Validate a raw u64 ID by decomposing and checking component ranges
     pub fn validate_id(&self, id: u64) -> Result<(), ValidationError> {
-        let timestamp = (id >> self.layout.timestamp_shift()) & self.layout.timestamp_max();
-        let worker_id = (id >> self.layout.worker_shift()) & self.layout.worker_max();
-        let process_id = (id >> self.layout.process_shift()) & self.layout.process_max();
-        let sequence = (id >> self.layout.sequence_shift()) & self.layout.sequence_max();
+        let timestamp = (id >> self.layout().timestamp_shift()) & self.layout().timestamp_max();
+        let worker_id = (id >> self.layout().worker_shift()) & self.layout().worker_max();
+        let process_id = (id >> self.layout().process_shift()) & self.layout().process_max();
+        let sequence = (id >> self.layout().sequence_shift()) & self.layout().sequence_max();
 
         self.validate_components(timestamp, worker_id, process_id, sequence)
     }
@@ -627,7 +635,7 @@ mod tests {
     #[test]
     fn config_default() {
         let config = Config::default();
-        let layout = config.layout;
+        let layout = config.layout();
         assert_eq!(
             layout.timestamp() + layout.worker() + layout.process() + layout.sequence(),
             64
@@ -643,16 +651,16 @@ mod tests {
             Epoch::new(1_600_000_000_000),
         );
 
-        assert_eq!(config.layout.timestamp(), 42);
-        assert_eq!(config.layout.worker(), 8);
-        assert_eq!(config.layout.process(), 4);
-        assert_eq!(config.layout.sequence(), 10);
-        assert_eq!(config.epoch.as_millis(), 1_600_000_000_000);
+        assert_eq!(config.layout().timestamp(), 42);
+        assert_eq!(config.layout().worker(), 8);
+        assert_eq!(config.layout().process(), 4);
+        assert_eq!(config.layout().sequence(), 10);
+        assert_eq!(config.epoch().as_millis(), 1_600_000_000_000);
 
         // Check max values are calculated correctly via BitLayout methods
-        assert_eq!(config.layout.worker_max(), (1u64 << 8) - 1); // 255
-        assert_eq!(config.layout.process_max(), (1u64 << 4) - 1); // 15
-        assert_eq!(config.layout.sequence_max(), (1u64 << 10) - 1); // 1023
+        assert_eq!(config.layout().worker_max(), (1u64 << 8) - 1); // 255
+        assert_eq!(config.layout().process_max(), (1u64 << 4) - 1); // 15
+        assert_eq!(config.layout().sequence_max(), (1u64 << 10) - 1); // 1023
     }
 
     #[test]
@@ -662,8 +670,8 @@ mod tests {
             Epoch::DEFAULT,
         );
 
-        assert_eq!(config.layout.process(), 0);
-        assert_eq!(config.layout.process_max(), 0);
+        assert_eq!(config.layout().process(), 0);
+        assert_eq!(config.layout().process_max(), 0);
     }
 
     #[test]
@@ -845,7 +853,7 @@ mod tests {
         // Test in Config
         const CUSTOM_CONFIG: Config =
             Config::new(BitLayout::DEFAULT, Epoch::from_date(2025, 3, 15));
-        assert!(CUSTOM_CONFIG.epoch.as_millis() > 0);
+        assert!(CUSTOM_CONFIG.epoch().as_millis() > 0);
     }
 
     #[test]

@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 /// Context for ID type - holds config, state pool, and default generator
 pub struct IdContext {
-    pub config: Config,
+    config: Config,
     states: StatePool,
     default_generator: OnceLock<Generator>,
 }
@@ -20,6 +20,11 @@ impl IdContext {
             states,
             default_generator: OnceLock::new(),
         }
+    }
+
+    /// Get the configuration
+    pub const fn config(&self) -> Config {
+        self.config
     }
 
     /// Get default generator (lazy initialization)
@@ -40,7 +45,7 @@ impl IdContext {
         // Get pre-allocated state (no lookup overhead)
         let state = self.states.get_state(worker_id, process_id).clone();
 
-        Generator::new_with_state(self.config, state, worker_id, process_id)
+        Generator::new_with_state(self.config(), state, worker_id, process_id)
     }
 
     /// Create generator with specific worker_id and default process_id
