@@ -148,7 +148,7 @@ macro_rules! id {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BitLayout, Config};
+    use crate::{BitLayout, Config, Epoch};
 
     #[test]
     fn macro_generates_default_config() {
@@ -170,7 +170,7 @@ mod tests {
     fn macro_with_custom_config() {
         const CUSTOM_CONFIG: Config = Config::new(
             BitLayout::new(42, 8, 4, 10), // bits: timestamp, worker, process, sequence
-            1_600_000_000_000,            // epoch
+            Epoch::new(1_600_000_000_000), // epoch
         );
 
         crate::id!(CustomId, CUSTOM_CONFIG);
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn instance_convenience_methods() {
         const CUSTOM_ALGORITHM: Config =
-            Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+            Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
         crate::id!(InstanceMethodId, CUSTOM_ALGORITHM);
 
@@ -370,7 +370,7 @@ mod tests {
     fn try_from_u64_validates_components() {
         const CUSTOM_CONFIG: Config = Config::new(
             BitLayout::new(42, 8, 4, 10), // max: ts=4.4T, worker=255, process=15, seq=1023
-            1_600_000_000_000,
+            Epoch::new(1_600_000_000_000),
         );
         crate::id!(ValidationTestId, CUSTOM_CONFIG);
 
@@ -402,7 +402,8 @@ mod tests {
 
     #[test]
     fn compose_validates_components() {
-        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        const CUSTOM_CONFIG: Config =
+            Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
         crate::id!(ComposeValidationId, CUSTOM_CONFIG);
 
         // Valid composition should succeed
@@ -454,7 +455,8 @@ mod tests {
 
     #[test]
     fn compose_unchecked_masks_overflow() {
-        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        const CUSTOM_CONFIG: Config =
+            Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
         crate::id!(UncheckedComposeId, CUSTOM_CONFIG);
 
         // compose_custom_unchecked should mask values that exceed limits
@@ -476,7 +478,8 @@ mod tests {
 
     #[test]
     fn from_str_validates() {
-        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        const CUSTOM_CONFIG: Config =
+            Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
         crate::id!(ParseValidationId, CUSTOM_CONFIG);
 
         // Valid ID string should parse
@@ -497,7 +500,8 @@ mod tests {
 
     #[test]
     fn from_u64_unchecked_no_validation() {
-        const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 8, 4, 10), 1_600_000_000_000);
+        const CUSTOM_CONFIG: Config =
+            Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
         crate::id!(UncheckedFromId, CUSTOM_CONFIG);
 
         // from_u64_unchecked should accept any value

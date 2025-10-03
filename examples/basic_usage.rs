@@ -1,4 +1,4 @@
-use typedflake::{BitLayout, Config};
+use typedflake::{BitLayout, Config, Epoch};
 
 // Create ID types with default configuration
 typedflake::id!(UserId);
@@ -7,7 +7,7 @@ typedflake::id!(OrderId);
 // Create ID type with custom configuration
 const CUSTOM_CONFIG: Config = Config::new(
     BitLayout::new(42, 5, 5, 12),
-    1759359576000, // October 1, 2025 10:59:36 PM
+    Epoch::from_date(2025, 1, 1), // January 1, 2025
 );
 
 typedflake::id!(SessionId, CUSTOM_CONFIG);

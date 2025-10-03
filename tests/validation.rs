@@ -1,12 +1,9 @@
-use typedflake::Config;
+use typedflake::{Config, Epoch};
 
 #[test]
 fn zero_process_bits() {
     // Config with zero process bits
-    const CONFIG: Config = Config::new(
-        typedflake::BitLayout::new(42, 10, 0, 12),
-        Config::DEFAULT_EPOCH_MS,
-    );
+    const CONFIG: Config = Config::new(typedflake::BitLayout::new(42, 10, 0, 12), Epoch::DEFAULT);
     typedflake::id!(ZeroProcessId, CONFIG);
 
     // Test with instance that has worker_id but process_id must be 0
@@ -40,10 +37,7 @@ fn zero_process_bits() {
 #[test]
 fn zero_worker_bits() {
     // Config with zero worker bits
-    const CONFIG: Config = Config::new(
-        typedflake::BitLayout::new(42, 0, 10, 12),
-        Config::DEFAULT_EPOCH_MS,
-    );
+    const CONFIG: Config = Config::new(typedflake::BitLayout::new(42, 0, 10, 12), Epoch::DEFAULT);
     typedflake::id!(ZeroWorkerBitsId, CONFIG);
 
     // Test that worker_id must be 0

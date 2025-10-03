@@ -1,10 +1,7 @@
-use typedflake::Config;
+use typedflake::{BitLayout, Config, Epoch};
 
 // Discord's configuration
-const DISCORD_CONFIG: Config = Config::new(
-    typedflake::BitLayout::new(42, 5, 5, 12),
-    1_420_070_400_000, // The first second of 2015
-);
+const DISCORD_CONFIG: Config = Config::new(BitLayout::DISCORD, Epoch::DISCORD);
 
 // Define ID types at module scope
 typedflake::id!(UserId);

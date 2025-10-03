@@ -65,12 +65,12 @@
 //! ## Custom Configuration
 //!
 //! ```rust
-//! use typedflake::{BitLayout, Config};
+//! use typedflake::{BitLayout, Config, Epoch};
 //!
 //! // Custom algorithm configuration
 //! const SESSION_ALGORITHM: Config = Config::new(
 //!     BitLayout::new(42, 10, 0, 12),   // bits: timestamp, worker, process, sequence
-//!     1_600_000_000_000, // epoch
+//!     Epoch::new(1_600_000_000_000), // epoch
 //! );
 //!
 //! typedflake::id!(SessionId, SESSION_ALGORITHM);
@@ -78,7 +78,7 @@
 //! // Another ID type with different algorithm
 //! const USER_ALGORITHM: Config = Config::new(
 //!     BitLayout::new(42, 10, 5, 7),
-//!     1_600_000_000_000,
+//!     Epoch::new(1_600_000_000_000),
 //! );
 //!
 //! typedflake::id!(UserId, USER_ALGORITHM);
@@ -92,12 +92,12 @@
 //! ## Shared Algorithm with Dynamic Instances
 //!
 //! ```rust
-//! use typedflake::{BitLayout, Config};
+//! use typedflake::{BitLayout, Config, Epoch};
 //!
 //! // Shared algorithm configuration across services
 //! const SHARED_ALGORITHM: Config = Config::new(
 //!     BitLayout::new(42, 6, 4, 12),   // bits: timestamp, worker, process, sequence
-//!     1_640_000_000_000,              // 2022 epoch
+//!     Epoch::new(1_640_000_000_000),  // 2022 epoch
 //! );
 //!
 //! // Service-specific ID types
@@ -150,6 +150,6 @@ pub mod traits;
 mod macros; // Keep macros private, they're exported via the macro itself
 
 // Re-export main types and the macro
-pub use config::{BitLayout, BitLayoutError, Config, ValidationError};
+pub use config::{BitLayout, BitLayoutError, Config, Epoch, EpochError, ValidationError};
 pub use context::IdContext;
 pub use generator::{Generator, GeneratorError, IdComponents};

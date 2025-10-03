@@ -33,13 +33,13 @@
 //! Use battle-tested bit allocations from real-world implementations:
 //!
 //! ```
-//! use typedflake::{BitLayout, Config};
+//! use typedflake::{BitLayout, Config, Epoch};
 //!
 //! // Twitter Snowflake-inspired (42t|5w|5p|12s)
-//! const TWITTER_CONFIG: Config = Config::new(BitLayout::TWITTER, 1288834974657);
+//! const TWITTER_CONFIG: Config = Config::new(BitLayout::TWITTER, Epoch::TWITTER);
 //!
 //! // Discord's allocation (42t|5w|5p|12s)
-//! const DISCORD_CONFIG: Config = Config::new(BitLayout::DISCORD, 1420070400000);
+//! const DISCORD_CONFIG: Config = Config::new(BitLayout::DISCORD, Epoch::DISCORD);
 //! ```
 //!
 //! # Custom Allocation
@@ -76,6 +76,170 @@ pub enum BitLayoutError {
     ZeroSequenceBits,
     #[error("Field '{field}' has {bits} bits which exceeds maximum of 64")]
     BitsExceedMaximum { field: &'static str, bits: u8 },
+}
+
+/// Errors that can occur when creating an Epoch
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum EpochError {
+    #[error("Invalid year {0}, must be between 1970 and 2100")]
+    InvalidYear(u16),
+    #[error("Invalid month {0}, must be between 1 and 12")]
+    InvalidMonth(u8),
+    #[error("Invalid day {0} for month {1}")]
+    InvalidDay(u8, u8),
+}
+
+/// Epoch timestamp in milliseconds since UNIX epoch
+///
+/// Provides type-safe epoch configuration with predefined presets
+/// and convenience constructors.
+///
+/// # Examples
+///
+/// ```
+/// use typedflake::Epoch;
+///
+/// // Use presets
+/// let epoch = Epoch::DISCORD;
+///
+/// // From raw milliseconds
+/// let epoch = Epoch::new(1735689600000);
+///
+/// // From date (const, panics on invalid)
+/// const CUSTOM_EPOCH: Epoch = Epoch::from_date(2025, 1, 1);
+///
+/// // From date (fallible)
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let epoch = Epoch::try_from_date(2025, 1, 1)?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Epoch {
+    millis: u64,
+}
+
+impl Epoch {
+    /// Twitter's epoch (Nov 4, 2010 01:42:54 UTC)
+    pub const TWITTER: Self = Self::new(1288834974657);
+
+    /// Discord's epoch (Jan 1, 2015 00:00:00 UTC)
+    pub const DISCORD: Self = Self::new(1420070400000);
+
+    /// Instagram's epoch (Sep 20, 2011 00:00:21 UTC)
+    pub const INSTAGRAM: Self = Self::new(1314220021721);
+
+    /// Default epoch (Jan 1, 2025 00:00:00 UTC)
+    pub const DEFAULT: Self = Self::new(1735689600000);
+
+    /// Create a new Epoch from milliseconds since UNIX epoch
+    pub const fn new(millis: u64) -> Self {
+        Self { millis }
+    }
+
+    /// Create an Epoch from a date with validation (year, month, day)
+    ///
+    /// # Arguments
+    /// - `year`: Year (1970-2100)
+    /// - `month`: Month (1-12)
+    /// - `day`: Day of month (1-31)
+    pub const fn try_from_date(year: u16, month: u8, day: u8) -> Result<Self, EpochError> {
+        // Validate year
+        if year < 1970 || year > 2100 {
+            return Err(EpochError::InvalidYear(year));
+        }
+
+        // Validate month
+        if month < 1 || month > 12 {
+            return Err(EpochError::InvalidMonth(month));
+        }
+
+        // Days in each month (non-leap year)
+        let days_in_month = match month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11 => 30,
+            2 => {
+                // Check for leap year
+                if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
+                    29
+                } else {
+                    28
+                }
+            }
+            _ => unreachable!(),
+        };
+
+        // Validate day
+        if day < 1 || day > days_in_month {
+            return Err(EpochError::InvalidDay(day, month));
+        }
+
+        // Calculate days since UNIX epoch (Jan 1, 1970)
+        let mut days = 0i64;
+
+        // Add days for complete years
+        let mut y: u16 = 1970;
+        while y < year {
+            days += if (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0) {
+                366
+            } else {
+                365
+            };
+            y += 1;
+        }
+
+        // Add days for complete months in current year
+        let mut m = 1;
+        while m < month {
+            days += match m {
+                1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+                4 | 6 | 9 | 11 => 30,
+                2 => {
+                    if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
+                        29
+                    } else {
+                        28
+                    }
+                }
+                _ => unreachable!(),
+            } as i64;
+            m += 1;
+        }
+
+        // Add remaining days (subtract 1 because day 1 = 0 days elapsed)
+        days += (day - 1) as i64;
+
+        // Convert to milliseconds
+        let millis = (days * 24 * 60 * 60 * 1000) as u64;
+
+        Ok(Self::new(millis))
+    }
+
+    /// Create an Epoch from a date (year, month, day)
+    ///
+    /// Panics if the date is invalid. Use `try_from_date` for fallible construction.
+    pub const fn from_date(year: u16, month: u8, day: u8) -> Self {
+        match Self::try_from_date(year, month, day) {
+            Ok(epoch) => epoch,
+            Err(_) => panic!("Invalid epoch date"),
+        }
+    }
+
+    /// Create an Epoch from UNIX timestamp in seconds
+    pub const fn from_seconds(secs: i64) -> Self {
+        Self::new((secs * 1000) as u64)
+    }
+
+    /// Get milliseconds since UNIX epoch
+    pub const fn as_millis(&self) -> u64 {
+        self.millis
+    }
+}
+
+impl fmt::Display for Epoch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}ms", self.millis)
+    }
 }
 
 /// Bit allocation configuration for ID generation
@@ -357,18 +521,14 @@ pub enum ValidationError {
 pub struct Config {
     /// Bit allocation configuration
     pub layout: BitLayout,
-    /// Epoch in milliseconds since UNIX epoch
-    pub epoch_ms: u64,
+    /// Epoch timestamp
+    pub epoch: Epoch,
 }
 
 impl Config {
-    /// Default epoch in milliseconds
-    pub const DEFAULT_EPOCH_MS: u64 = 1735689600000; // ISO-8601 2025-01-01T00:00:00.000Z
-
-    /// Create a new Config from BitLayout and epoch
-    pub const fn new(layout: BitLayout, epoch_ms: u64) -> Self {
-        // BitLayout validation is handled in BitLayout::new()
-        Config { layout, epoch_ms }
+    /// Create a new Config from BitLayout and Epoch
+    pub const fn new(layout: BitLayout, epoch: Epoch) -> Self {
+        Config { layout, epoch }
     }
 
     /// Get current timestamp relative to epoch
@@ -377,7 +537,7 @@ impl Config {
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
             .as_millis() as u64
-            - self.epoch_ms
+            - self.epoch.as_millis()
     }
 
     /// Validate worker_id/process_id against bit limits
@@ -455,7 +615,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(BitLayout::DEFAULT, Self::DEFAULT_EPOCH_MS)
+        Self::new(BitLayout::DEFAULT, Epoch::DEFAULT)
     }
 }
 
@@ -480,14 +640,14 @@ mod tests {
     fn config_new() {
         let config = Config::new(
             BitLayout::new(42, 8, 4, 10), // bits: timestamp, worker, process, sequence
-            1_600_000_000_000,
+            Epoch::new(1_600_000_000_000),
         );
 
         assert_eq!(config.layout.timestamp(), 42);
         assert_eq!(config.layout.worker(), 8);
         assert_eq!(config.layout.process(), 4);
         assert_eq!(config.layout.sequence(), 10);
-        assert_eq!(config.epoch_ms, 1_600_000_000_000);
+        assert_eq!(config.epoch.as_millis(), 1_600_000_000_000);
 
         // Check max values are calculated correctly via BitLayout methods
         assert_eq!(config.layout.worker_max(), (1u64 << 8) - 1); // 255
@@ -499,7 +659,7 @@ mod tests {
     fn config_zero_process_bits() {
         let config = Config::new(
             BitLayout::new(41, 10, 0, 13), // process_bits = 0
-            Config::DEFAULT_EPOCH_MS,
+            Epoch::DEFAULT,
         );
 
         assert_eq!(config.layout.process(), 0);
@@ -509,7 +669,7 @@ mod tests {
     #[test]
     fn validate_instance_boundaries_and_errors() {
         let layout = BitLayout::new(42, 8, 4, 10); // max_worker = 255, max_process = 15
-        let config = Config::new(layout, 1_600_000_000_000);
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Valid instances - boundaries
         assert!(config.validate_instance(255, 15).is_ok());
@@ -579,7 +739,7 @@ mod tests {
     #[test]
     fn validate_components_success() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new(layout, 1_600_000_000_000);
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Valid at boundaries
         let max_timestamp = (1u64 << 42) - 1;
@@ -603,7 +763,7 @@ mod tests {
     #[test]
     fn validate_components_errors() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new(layout, 1_600_000_000_000);
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Timestamp overflow
         let timestamp_err = config.validate_components(1u64 << 42, 0, 0, 0);
@@ -637,7 +797,7 @@ mod tests {
     #[test]
     fn validate_id_from_raw_u64() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new(layout, 1_600_000_000_000);
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Create a valid ID manually
         let timestamp = 1000u64;
@@ -667,5 +827,43 @@ mod tests {
             | (max_sequence << layout.sequence_shift());
 
         assert!(config.validate_id(max_valid_id).is_ok());
+    }
+
+    #[test]
+    fn epoch_const_from_date() {
+        // Test const fn from_date (panicking version)
+        const EPOCH_2025: Epoch = Epoch::from_date(2025, 1, 1);
+        assert_eq!(EPOCH_2025.as_millis(), 1735689600000);
+
+        const EPOCH_2024: Epoch = Epoch::from_date(2024, 6, 15);
+        assert!(EPOCH_2024.as_millis() > 0);
+
+        // Test const fn try_from_date (Result version)
+        const EPOCH_RESULT: Result<Epoch, EpochError> = Epoch::try_from_date(2025, 12, 31);
+        assert!(EPOCH_RESULT.is_ok());
+
+        // Test in Config
+        const CUSTOM_CONFIG: Config =
+            Config::new(BitLayout::DEFAULT, Epoch::from_date(2025, 3, 15));
+        assert!(CUSTOM_CONFIG.epoch.as_millis() > 0);
+    }
+
+    #[test]
+    fn epoch_try_from_date_errors() {
+        // Invalid year
+        assert!(Epoch::try_from_date(1969, 1, 1).is_err());
+        assert!(Epoch::try_from_date(2101, 1, 1).is_err());
+
+        // Invalid month
+        assert!(Epoch::try_from_date(2025, 0, 1).is_err());
+        assert!(Epoch::try_from_date(2025, 13, 1).is_err());
+
+        // Invalid day
+        assert!(Epoch::try_from_date(2025, 2, 30).is_err());
+        assert!(Epoch::try_from_date(2025, 4, 31).is_err());
+
+        // Leap year edge case
+        assert!(Epoch::try_from_date(2024, 2, 29).is_ok()); // 2024 is leap year
+        assert!(Epoch::try_from_date(2025, 2, 29).is_err()); // 2025 is not
     }
 }

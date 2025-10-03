@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(config.layout.worker(), default_config.layout.worker());
         assert_eq!(config.layout.process(), default_config.layout.process());
         assert_eq!(config.layout.sequence(), default_config.layout.sequence());
-        assert_eq!(config.epoch_ms, default_config.epoch_ms);
+        assert_eq!(config.epoch, default_config.epoch);
     }
 
     #[test]

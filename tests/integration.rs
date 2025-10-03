@@ -1,4 +1,4 @@
-use typedflake::Config;
+use typedflake::{Config, Epoch};
 
 #[test]
 fn custom_config_with_defaults() {
@@ -6,7 +6,10 @@ fn custom_config_with_defaults() {
     // Custom config: 42 timestamp, 8 worker bits (max 255), 4 process bits (max 15), 10 sequence bits
     typedflake::id!(
         CustomConfigId,
-        Config::new(typedflake::BitLayout::new(42, 8, 4, 10), 1_500_000_000_000)
+        Config::new(
+            typedflake::BitLayout::new(42, 8, 4, 10),
+            Epoch::new(1_500_000_000_000)
+        )
     );
 
     let id = CustomConfigId::generate().unwrap();
@@ -36,7 +39,7 @@ fn sequence_exhaustion_and_recovery() {
         SmallSeqId,
         Config::new(
             typedflake::BitLayout::new(50, 5, 5, 4),
-            Config::DEFAULT_EPOCH_MS
+            typedflake::Epoch::DEFAULT
         )
     );
 

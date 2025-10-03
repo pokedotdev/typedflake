@@ -253,6 +253,7 @@ mod tests {
     use super::*;
     use crate::BitLayout;
     use crate::Config;
+    use crate::Epoch;
 
     #[test]
     fn generator_id_generation() {
@@ -309,7 +310,7 @@ mod tests {
         // Test compose/decompose with maximum values for custom config
         let config = Config::new(
             BitLayout::new(42, 8, 4, 10), // 42 timestamp, 8 worker, 4 process, 10 sequence
-            1_500_000_000_000,
+            Epoch::new(1_500_000_000_000),
         );
         let generator = Generator::new(config, 0, 0).unwrap();
 
