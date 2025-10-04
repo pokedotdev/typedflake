@@ -494,7 +494,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result,
-            Err(crate::config::ValidationError::ParseError(_))
+            Err(crate::config::ValidationError::StringParseError(_))
         ));
     }
 

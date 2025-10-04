@@ -44,9 +44,7 @@ macro_rules! impl_id_traits {
             type Err = $crate::config::ValidationError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                let id = s
-                    .parse::<u64>()
-                    .map_err(|e| $crate::config::ValidationError::ParseError(e.to_string()))?;
+                let id = s.parse::<u64>()?;
                 Self::try_from_u64(id)
             }
         }

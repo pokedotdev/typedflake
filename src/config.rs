@@ -61,32 +61,30 @@
 //! assert_eq!(CUSTOM.total_instances(), 4096);
 //! ```
 
+use derive_more::{Display, Error, From};
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
-use thiserror::Error;
 
 /// Errors that can occur when creating or validating a BitLayout
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Display, Error, Debug, Clone, PartialEq, Eq)]
 pub enum BitLayoutError {
-    #[error("Bit allocation must sum to 64, got {actual}")]
+    #[display("Bit allocation must sum to 64, got {actual}")]
     InvalidSum { actual: u8 },
-    #[error("Timestamp bits must be greater than 0")]
+    #[display("Timestamp bits must be greater than 0")]
     ZeroTimestampBits,
-    #[error("Sequence bits must be greater than 0")]
+    #[display("Sequence bits must be greater than 0")]
     ZeroSequenceBits,
-    #[error("Field '{field}' has {bits} bits which exceeds maximum of 64")]
-    BitsExceedMaximum { field: &'static str, bits: u8 },
 }
 
 /// Errors that can occur when creating an Epoch
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Display, Error, Debug, Clone, PartialEq, Eq)]
 pub enum EpochError {
-    #[error("Invalid year {0}, must be between 1970 and 2100")]
-    InvalidYear(u16),
-    #[error("Invalid month {0}, must be between 1 and 12")]
-    InvalidMonth(u8),
-    #[error("Invalid day {0} for month {1}")]
-    InvalidDay(u8, u8),
+    #[display("Invalid year {year}, must be between 1970 and 2100")]
+    InvalidYear { year: u16 },
+    #[display("Invalid month {month}, must be between 1 and 12")]
+    InvalidMonth { month: u8 },
+    #[display("Invalid day {day} for month {month}")]
+    InvalidDay { day: u8, month: u8 },
 }
 
 /// Epoch timestamp in milliseconds since UNIX epoch
@@ -146,12 +144,12 @@ impl Epoch {
     pub const fn try_from_date(year: u16, month: u8, day: u8) -> Result<Self, EpochError> {
         // Validate year
         if year < 1970 || year > 2100 {
-            return Err(EpochError::InvalidYear(year));
+            return Err(EpochError::InvalidYear { year });
         }
 
         // Validate month
         if month < 1 || month > 12 {
-            return Err(EpochError::InvalidMonth(month));
+            return Err(EpochError::InvalidMonth { month });
         }
 
         // Days in each month (non-leap year)
@@ -171,7 +169,7 @@ impl Epoch {
 
         // Validate day
         if day < 1 || day > days_in_month {
-            return Err(EpochError::InvalidDay(day, month));
+            return Err(EpochError::InvalidDay { day, month });
         }
 
         // Calculate days since UNIX epoch (Jan 1, 1970)
@@ -483,34 +481,35 @@ impl From<(u8, u8, u8, u8)> for BitLayout {
 }
 
 /// Validation error for component bounds checking
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Display, Error, From, Debug, Clone, PartialEq, Eq)]
 pub enum ValidationError {
-    #[error("Timestamp {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    #[display("Timestamp {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
     TimestampOutOfRange {
         provided: u64,
         maximum: u64,
         bits: u8,
     },
-    #[error("Worker ID {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    #[display("Worker ID {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
     WorkerIdOutOfRange {
         provided: u64,
         maximum: u64,
         bits: u8,
     },
-    #[error("Process ID {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    #[display("Process ID {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
     ProcessIdOutOfRange {
         provided: u64,
         maximum: u64,
         bits: u8,
     },
-    #[error("Sequence {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
+    #[display("Sequence {provided} exceeds maximum {maximum} (configured with {bits} bits)")]
     SequenceOutOfRange {
         provided: u64,
         maximum: u64,
         bits: u8,
     },
-    #[error("Invalid ID format: {0}")]
-    ParseError(String),
+    #[display("Failed to parse ID from string")]
+    #[from]
+    StringParseError(std::num::ParseIntError),
 }
 
 /// Configuration - contains bit allocation (via BitLayout) and epoch

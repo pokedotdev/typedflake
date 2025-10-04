@@ -7,8 +7,8 @@ license = "MIT"
 authors = ["pokedotdev <hi@poke.dev>"]
 
 [dependencies]
+derive_more = { version = "2.0.1", features = ["full"] }
 paste = "1.0.15"
-thiserror = "2.0.16"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

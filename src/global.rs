@@ -1,6 +1,6 @@
 use crate::Config;
+use derive_more::{Display, Error};
 use std::sync::OnceLock;
-use thiserror::Error;
 
 /// Unified global defaults containing both config and instance
 #[derive(Debug, Clone, Copy, Default)]
@@ -13,9 +13,9 @@ struct GlobalDefaults {
 static GLOBAL_DEFAULTS: OnceLock<GlobalDefaults> = OnceLock::new();
 
 /// Error types for default configuration
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Display, Error, Debug, Clone, PartialEq, Eq)]
 pub enum DefaultConfigError {
-    #[error("Global defaults have already been set")]
+    #[display("Global defaults have already been set")]
     DefaultsAlreadySet,
 }
 
@@ -83,10 +83,16 @@ mod tests {
         let config = get_default_config();
         let default_config = Config::default();
 
-        assert_eq!(config.layout().timestamp(), default_config.layout().timestamp());
+        assert_eq!(
+            config.layout().timestamp(),
+            default_config.layout().timestamp()
+        );
         assert_eq!(config.layout().worker(), default_config.layout().worker());
         assert_eq!(config.layout().process(), default_config.layout().process());
-        assert_eq!(config.layout().sequence(), default_config.layout().sequence());
+        assert_eq!(
+            config.layout().sequence(),
+            default_config.layout().sequence()
+        );
         assert_eq!(config.epoch(), default_config.epoch());
     }
 

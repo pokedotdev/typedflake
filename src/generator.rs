@@ -1,12 +1,12 @@
 use crate::config::{Config, ValidationError};
 use crate::state::State;
+use derive_more::{Display, Error};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use thiserror::Error;
 
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Display, Error, Debug, Clone, PartialEq, Eq)]
 pub enum GeneratorError {
-    #[error(
+    #[display(
         "Sequence exhausted for timestamp {timestamp} on worker_id={worker_id}, process_id={process_id}"
     )]
     SequenceExhausted {
