@@ -76,6 +76,16 @@ pub enum BitLayoutError {
     ZeroSequenceBits,
 }
 
+impl BitLayoutError {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::InvalidSum { .. } => "Bit allocation must sum to 64",
+            Self::ZeroTimestampBits => "Timestamp bits must be greater than 0",
+            Self::ZeroSequenceBits => "Sequence bits must be greater than 0",
+        }
+    }
+}
+
 /// Errors that can occur when creating an Epoch
 #[derive(Display, Error, Debug, Clone, PartialEq, Eq)]
 pub enum EpochError {
@@ -85,6 +95,16 @@ pub enum EpochError {
     InvalidMonth { month: u8 },
     #[display("Invalid day {day} for month {month}")]
     InvalidDay { day: u8, month: u8 },
+}
+
+impl EpochError {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::InvalidYear { .. } => "Invalid year, must be between 1970 and 2100",
+            Self::InvalidMonth { .. } => "Invalid month, must be between 1 and 12",
+            Self::InvalidDay { .. } => "Invalid day for month",
+        }
+    }
 }
 
 /// Epoch timestamp in milliseconds since UNIX epoch
@@ -219,7 +239,7 @@ impl Epoch {
     pub const fn from_date(year: u16, month: u8, day: u8) -> Self {
         match Self::try_from_date(year, month, day) {
             Ok(epoch) => epoch,
-            Err(_) => panic!("Invalid epoch date"),
+            Err(error) => panic!("{}", error.as_str()),
         }
     }
 
@@ -298,36 +318,35 @@ impl BitLayout {
     /// Use `validate()` for runtime checking.
     pub const fn new(timestamp: u8, worker: u8, process: u8, sequence: u8) -> Self {
         // Const validation - will panic at compile time for const contexts
-        assert!(
-            timestamp as u16 + worker as u16 + process as u16 + sequence as u16 == 64,
-            "Bit allocation must sum to 64"
-        );
-        assert!(timestamp > 0, "Timestamp bits must be > 0");
-        assert!(sequence > 0, "Sequence bits must be > 0");
-
-        Self {
-            timestamp,
-            worker,
-            process,
-            sequence,
+        match Self::try_new(timestamp, worker, process, sequence) {
+            Ok(layout) => layout,
+            Err(error) => panic!("{}", error.as_str()),
         }
     }
 
     /// Create a new BitLayout with runtime validation
-    pub fn try_new(
+    pub const fn try_new(
         timestamp: u8,
         worker: u8,
         process: u8,
         sequence: u8,
     ) -> Result<Self, BitLayoutError> {
-        let layout = Self {
+        let sum = timestamp as u16 + worker as u16 + process as u16 + sequence as u16;
+        if sum != 64 {
+            return Err(BitLayoutError::InvalidSum { actual: sum as u8 });
+        }
+        if timestamp == 0 {
+            return Err(BitLayoutError::ZeroTimestampBits);
+        }
+        if sequence == 0 {
+            return Err(BitLayoutError::ZeroSequenceBits);
+        }
+        Ok(Self {
             timestamp,
             worker,
             process,
             sequence,
-        };
-        layout.validate()?;
-        Ok(layout)
+        })
     }
 
     /// Get timestamp bits
@@ -348,22 +367,6 @@ impl BitLayout {
     /// Get sequence bits
     pub const fn sequence(&self) -> u8 {
         self.sequence
-    }
-
-    /// Validate this BitLayout
-    pub const fn validate(&self) -> Result<(), BitLayoutError> {
-        let sum =
-            self.timestamp as u16 + self.worker as u16 + self.process as u16 + self.sequence as u16;
-        if sum != 64 {
-            return Err(BitLayoutError::InvalidSum { actual: sum as u8 });
-        }
-        if self.timestamp == 0 {
-            return Err(BitLayoutError::ZeroTimestampBits);
-        }
-        if self.sequence == 0 {
-            return Err(BitLayoutError::ZeroSequenceBits);
-        }
-        Ok(())
     }
 
     /// Total number of possible instances (2^worker_bits × 2^process_bits)
@@ -510,6 +513,18 @@ pub enum ValidationError {
     #[display("Failed to parse ID from string")]
     #[from]
     StringParseError(std::num::ParseIntError),
+}
+
+impl ValidationError {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::TimestampOutOfRange { .. } => "Timestamp exceeds maximum",
+            Self::WorkerIdOutOfRange { .. } => "Worker ID exceeds maximum",
+            Self::ProcessIdOutOfRange { .. } => "Process ID exceeds maximum",
+            Self::SequenceOutOfRange { .. } => "Sequence exceeds maximum",
+            Self::StringParseError(_) => "Failed to parse ID from string",
+        }
+    }
 }
 
 /// Configuration - contains bit allocation (via BitLayout) and epoch
