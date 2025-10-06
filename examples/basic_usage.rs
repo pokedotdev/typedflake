@@ -5,7 +5,7 @@ typedflake::id!(UserId);
 typedflake::id!(OrderId);
 
 // Create ID type with custom configuration
-const CUSTOM_CONFIG: Config = Config::new(
+const CUSTOM_CONFIG: Config = Config::new_unchecked(
     BitLayout::new(42, 5, 5, 12),
     Epoch::from_date(2025, 1, 1), // January 1, 2025
 );

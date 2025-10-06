@@ -1,7 +1,7 @@
 use typedflake::{BitLayout, Config, Epoch};
 
 // Discord's configuration
-const DISCORD_CONFIG: Config = Config::new(BitLayout::DISCORD, Epoch::DISCORD);
+const DISCORD_CONFIG: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
 
 // Define ID types at module scope
 typedflake::id!(UserId);

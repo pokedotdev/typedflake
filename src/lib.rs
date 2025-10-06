@@ -68,7 +68,7 @@
 //! use typedflake::{BitLayout, Config, Epoch};
 //!
 //! // Custom algorithm configuration
-//! const SESSION_ALGORITHM: Config = Config::new(
+//! const SESSION_ALGORITHM: Config = Config::new_unchecked(
 //!     BitLayout::new(42, 10, 0, 12),   // bits: timestamp, worker, process, sequence
 //!     Epoch::new(1_600_000_000_000), // epoch
 //! );
@@ -76,7 +76,7 @@
 //! typedflake::id!(SessionId, SESSION_ALGORITHM);
 //!
 //! // Another ID type with different algorithm
-//! const USER_ALGORITHM: Config = Config::new(
+//! const USER_ALGORITHM: Config = Config::new_unchecked(
 //!     BitLayout::new(42, 10, 5, 7),
 //!     Epoch::new(1_600_000_000_000),
 //! );
@@ -95,7 +95,7 @@
 //! use typedflake::{BitLayout, Config, Epoch};
 //!
 //! // Shared algorithm configuration across services
-//! const SHARED_ALGORITHM: Config = Config::new(
+//! const SHARED_ALGORITHM: Config = Config::new_unchecked(
 //!     BitLayout::new(42, 6, 4, 12),   // bits: timestamp, worker, process, sequence
 //!     Epoch::new(1_640_000_000_000),  // 2022 epoch
 //! );

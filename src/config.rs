@@ -36,10 +36,10 @@
 //! use typedflake::{BitLayout, Config, Epoch};
 //!
 //! // Twitter Snowflake-inspired (42t|5w|5p|12s)
-//! const TWITTER_CONFIG: Config = Config::new(BitLayout::TWITTER, Epoch::TWITTER);
+//! const TWITTER_CONFIG: Config = Config::new_unchecked(BitLayout::TWITTER, Epoch::TWITTER);
 //!
 //! // Discord's allocation (42t|5w|5p|12s)
-//! const DISCORD_CONFIG: Config = Config::new(BitLayout::DISCORD, Epoch::DISCORD);
+//! const DISCORD_CONFIG: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
 //! ```
 //!
 //! # Custom Allocation
@@ -562,8 +562,8 @@ pub struct Config {
 }
 
 impl Config {
-    /// Create a new Config from BitLayout and Epoch
-    pub const fn new(layout: BitLayout, epoch: Epoch) -> Self {
+    /// Create a new Config without validation (const-compatible)
+    pub const fn new_unchecked(layout: BitLayout, epoch: Epoch) -> Self {
         Config { layout, epoch }
     }
 
@@ -697,7 +697,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(BitLayout::DEFAULT, Epoch::DEFAULT)
+        Self::new_unchecked(BitLayout::DEFAULT, Epoch::DEFAULT)
     }
 }
 
@@ -720,7 +720,7 @@ mod tests {
 
     #[test]
     fn config_new() {
-        let config = Config::new(
+        let config = Config::new_unchecked(
             BitLayout::new(42, 8, 4, 10), // bits: timestamp, worker, process, sequence
             Epoch::new(1_600_000_000_000),
         );
@@ -739,7 +739,7 @@ mod tests {
 
     #[test]
     fn config_zero_process_bits() {
-        let config = Config::new(
+        let config = Config::new_unchecked(
             BitLayout::new(41, 10, 0, 13), // process_bits = 0
             Epoch::DEFAULT,
         );
@@ -751,7 +751,7 @@ mod tests {
     #[test]
     fn validate_instance_boundaries_and_errors() {
         let layout = BitLayout::new(42, 8, 4, 10); // max_worker = 255, max_process = 15
-        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
 
         // Valid instances - boundaries
         assert!(config.validate_instance(255, 15).is_ok());
@@ -821,7 +821,7 @@ mod tests {
     #[test]
     fn validate_components_success() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
 
         // Valid at boundaries
         let max_timestamp = (1u64 << 42) - 1;
@@ -845,7 +845,7 @@ mod tests {
     #[test]
     fn validate_components_errors() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
 
         // Timestamp overflow
         let timestamp_err = config.validate_components(1u64 << 42, 0, 0, 0);
@@ -879,7 +879,7 @@ mod tests {
     #[test]
     fn validate_id_from_raw_u64() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
 
         // Create a valid ID manually
         let timestamp = 1000u64;
@@ -926,7 +926,7 @@ mod tests {
 
         // Test in Config
         const CUSTOM_CONFIG: Config =
-            Config::new(BitLayout::DEFAULT, Epoch::from_date(2025, 3, 15));
+            Config::new_unchecked(BitLayout::DEFAULT, Epoch::from_date(2025, 3, 15));
         assert!(CUSTOM_CONFIG.epoch().as_millis() > 0);
     }
 
