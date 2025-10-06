@@ -1,4 +1,5 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use typedflake::{BitLayout, Config, Epoch};
 
 // Create ID types for benchmarking
