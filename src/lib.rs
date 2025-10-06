@@ -150,6 +150,8 @@ pub mod traits;
 mod macros; // Keep macros private, they're exported via the macro itself
 
 // Re-export main types and the macro
-pub use config::{BitLayout, BitLayoutError, Config, Epoch, EpochError, ValidationError};
+pub use config::{
+    BitLayout, BitLayoutError, Config, ConfigError, Epoch, EpochError, ValidationError,
+};
 pub use context::IdContext;
 pub use generator::{Generator, GeneratorError, IdComponents};

@@ -107,6 +107,30 @@ impl EpochError {
     }
 }
 
+/// Errors that can occur when creating a Config
+#[derive(Display, Error, Debug, Clone, PartialEq, Eq)]
+pub enum ConfigError {
+    #[display("Epoch {epoch}ms is in the future (current time: {current}ms)")]
+    FutureEpoch { epoch: u64, current: u64 },
+    #[display(
+        "Epoch is too old: {elapsed}ms elapsed exceeds maximum {max_duration}ms (configured with {bits} timestamp bits)"
+    )]
+    EpochExceedsCapacity {
+        elapsed: u64,
+        max_duration: u64,
+        bits: u8,
+    },
+}
+
+impl ConfigError {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::FutureEpoch { .. } => "Epoch is in the future",
+            Self::EpochExceedsCapacity { .. } => "Epoch is too old for timestamp bit allocation",
+        }
+    }
+}
+
 /// Epoch timestamp in milliseconds since UNIX epoch
 ///
 /// Provides type-safe epoch configuration with predefined presets
@@ -543,6 +567,42 @@ impl Config {
         Config { layout, epoch }
     }
 
+    /// Create a new Config with validation
+    ///
+    /// Validates that the epoch is not in the future and that elapsed time
+    /// since epoch doesn't exceed the timestamp bit capacity.
+    pub fn try_new(layout: BitLayout, epoch: Epoch) -> Result<Self, ConfigError> {
+        // Get current time in milliseconds since UNIX epoch
+        let current_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time is before UNIX epoch")
+            .as_millis() as u64;
+
+        let epoch_ms = epoch.as_millis();
+
+        // Validate epoch is not in the future
+        if epoch_ms > current_ms {
+            return Err(ConfigError::FutureEpoch {
+                epoch: epoch_ms,
+                current: current_ms,
+            });
+        }
+
+        // Validate elapsed time doesn't exceed timestamp capacity
+        let elapsed = current_ms - epoch_ms;
+        let max_duration = layout.timestamp_max();
+
+        if elapsed > max_duration {
+            return Err(ConfigError::EpochExceedsCapacity {
+                elapsed,
+                max_duration,
+                bits: layout.timestamp(),
+            });
+        }
+
+        Ok(Config { layout, epoch })
+    }
+
     /// Get the bit layout configuration
     pub const fn layout(&self) -> BitLayout {
         self.layout
@@ -887,5 +947,95 @@ mod tests {
         // Leap year edge case
         assert!(Epoch::try_from_date(2024, 2, 29).is_ok()); // 2024 is leap year
         assert!(Epoch::try_from_date(2025, 2, 29).is_err()); // 2025 is not
+    }
+
+    #[test]
+    fn config_try_new_valid() {
+        // Valid config with past epoch
+        let layout = BitLayout::DEFAULT;
+        let epoch = Epoch::new(1_600_000_000_000); // Sept 2020
+        let config = Config::try_new(layout, epoch);
+        assert!(config.is_ok());
+
+        let config = config.unwrap();
+        assert_eq!(config.layout(), layout);
+        assert_eq!(config.epoch(), epoch);
+    }
+
+    #[test]
+    fn config_try_new_future_epoch() {
+        let layout = BitLayout::DEFAULT;
+        // Far future epoch (year 2286)
+        let future_epoch = Epoch::new(9_999_999_999_999);
+
+        let result = Config::try_new(layout, future_epoch);
+        assert!(result.is_err());
+
+        if let Err(ConfigError::FutureEpoch { epoch, current }) = result {
+            assert_eq!(epoch, 9_999_999_999_999);
+            assert!(current < epoch);
+        } else {
+            panic!("Expected FutureEpoch error");
+        }
+    }
+
+    #[test]
+    fn config_try_new_epoch_exceeds_capacity() {
+        // Use small timestamp bits to force capacity overflow
+        let layout = BitLayout::new(20, 10, 10, 24); // Only 20 timestamp bits (~12 days)
+
+        // Epoch from 2 years ago will exceed 20-bit capacity
+        let current = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        let two_years_ago = current - (2 * 365 * 24 * 60 * 60 * 1000);
+        let old_epoch = Epoch::new(two_years_ago);
+
+        let result = Config::try_new(layout, old_epoch);
+        assert!(result.is_err());
+
+        if let Err(ConfigError::EpochExceedsCapacity {
+            elapsed,
+            max_duration,
+            bits,
+        }) = result
+        {
+            assert!(elapsed > max_duration);
+            assert_eq!(bits, 20);
+            assert_eq!(max_duration, (1u64 << 20) - 1);
+        } else {
+            panic!("Expected EpochExceedsCapacity error");
+        }
+    }
+
+    #[test]
+    fn config_try_new_edge_cases() {
+        let layout = BitLayout::DEFAULT;
+
+        // Epoch exactly at current time should work (edge case)
+        let current = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        let now_epoch = Epoch::new(current);
+        assert!(Config::try_new(layout, now_epoch).is_ok());
+
+        // Epoch 1 millisecond ago should work
+        let one_ms_ago = Epoch::new(current - 1);
+        assert!(Config::try_new(layout, one_ms_ago).is_ok());
+    }
+
+    #[test]
+    fn config_try_new_with_presets() {
+        // All preset epochs should be valid with their corresponding layouts
+        assert!(Config::try_new(BitLayout::TWITTER, Epoch::TWITTER).is_ok());
+        assert!(Config::try_new(BitLayout::DISCORD, Epoch::DISCORD).is_ok());
+
+        // Cross-combination should also work (both are 42-bit layouts from ~2010-2015)
+        assert!(Config::try_new(BitLayout::TWITTER, Epoch::DISCORD).is_ok());
+        assert!(Config::try_new(BitLayout::DISCORD, Epoch::TWITTER).is_ok());
     }
 }
