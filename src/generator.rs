@@ -113,25 +113,26 @@ impl Generator {
     /// Compose ID with validation (uses bound worker_id and process_id)
     pub fn compose(&self, timestamp: u64, sequence: u64) -> Result<u64, ValidationError> {
         // Validate timestamp and sequence (worker/process already validated at construction)
-        if timestamp > self.config.layout().timestamp_max() {
+        let layout = self.config.layout();
+        if timestamp > layout.timestamp_max() {
             return Err(ValidationError::TimestampOutOfRange {
                 provided: timestamp,
-                maximum: self.config.layout().timestamp_max(),
-                bits: self.config.layout().timestamp(),
+                maximum: layout.timestamp_max(),
+                bits: layout.timestamp(),
             });
         }
-        if sequence > self.config.layout().sequence_max() {
+        if sequence > layout.sequence_max() {
             return Err(ValidationError::SequenceOutOfRange {
                 provided: sequence,
-                maximum: self.config.layout().sequence_max(),
-                bits: self.config.layout().sequence(),
+                maximum: layout.sequence_max(),
+                bits: layout.sequence(),
             });
         }
         Ok(self.compose_unchecked(timestamp, sequence))
     }
 
     /// Compose ID without validation (uses bound worker/process, masks overflow)
-    #[inline]
+    #[inline(always)]
     pub fn compose_unchecked(&self, timestamp: u64, sequence: u64) -> u64 {
         let layout = self.config.layout();
         let masked_timestamp = timestamp & layout.timestamp_max();
@@ -198,24 +199,28 @@ impl Generator {
     }
 
     /// Extract just the timestamp component from an ID
+    #[inline(always)]
     pub fn extract_timestamp(&self, id: u64) -> u64 {
         let layout = self.config.layout();
         (id >> layout.timestamp_shift()) & layout.timestamp_max()
     }
 
     /// Extract just the worker ID component from an ID
+    #[inline(always)]
     pub fn extract_worker_id(&self, id: u64) -> u64 {
         let layout = self.config.layout();
         (id >> layout.worker_shift()) & layout.worker_max()
     }
 
     /// Extract just the process ID component from an ID
+    #[inline(always)]
     pub fn extract_process_id(&self, id: u64) -> u64 {
         let layout = self.config.layout();
         (id >> layout.process_shift()) & layout.process_max()
     }
 
     /// Extract just the sequence component from an ID
+    #[inline(always)]
     pub fn extract_sequence(&self, id: u64) -> u64 {
         let layout = self.config.layout();
         (id >> layout.sequence_shift()) & layout.sequence_max()
@@ -235,6 +240,7 @@ impl Generator {
     }
 
     /// Compose from all components without validation (values exceeding limits are masked)
+    #[inline]
     pub fn compose_custom_unchecked(
         &self,
         timestamp: u64,

@@ -19,11 +19,13 @@ impl State {
     }
 
     /// Pack timestamp and sequence into single u64
+    #[inline(always)]
     pub fn pack_state(&self, timestamp: u64, sequence: u64, config: Config) -> u64 {
         (timestamp << config.layout().sequence()) | (sequence & config.layout().sequence_max())
     }
 
     /// Unpack timestamp and sequence from single u64
+    #[inline(always)]
     pub fn unpack_state(&self, packed: u64, config: Config) -> (u64, u64) {
         let timestamp = packed >> config.layout().sequence();
         let sequence = packed & config.layout().sequence_max();
@@ -56,7 +58,7 @@ impl StatePool {
     }
 
     /// Pack (worker_id, process_id) into u32 key using bit layout
-    #[inline]
+    #[inline(always)]
     fn pack_key(&self, worker_id: u64, process_id: u64) -> u32 {
         // Use max values from config for bounds safety
         let masked_worker = worker_id & self.config.layout().worker_max();
