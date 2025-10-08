@@ -5,6 +5,7 @@ use std::sync::atomic::AtomicU64;
 
 /// Atomic state for each (worker_id, process_id) instance
 #[derive(Debug)]
+#[repr(align(64))] // Cache-line alignment to prevent false sharing across cores
 pub struct State {
     /// Packed state: upper bits = timestamp, lower bits = sequence
     pub packed: AtomicU64,
