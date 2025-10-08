@@ -147,12 +147,22 @@ impl Generator {
 
     /// Helper method for waiting until next millisecond
     fn wait_for_next_millis(&self) {
-        let mut current = self.config.current_timestamp_ms();
-        let start_time = current;
+        let start_time = self.config.current_timestamp_ms();
 
-        while current <= start_time {
+        // Spin-wait first to catch millisecond boundary quickly
+        for i in 0..64 {
+            if self.config.current_timestamp_ms() > start_time {
+                return;
+            }
+            std::hint::spin_loop();
+            if i % 16 == 15 {
+                std::thread::yield_now();
+            }
+        }
+
+        // Fall back to sleep if still in same millisecond
+        while self.config.current_timestamp_ms() <= start_time {
             std::thread::sleep(std::time::Duration::from_millis(1));
-            current = self.config.current_timestamp_ms();
         }
     }
 
