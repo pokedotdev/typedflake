@@ -56,10 +56,9 @@ impl Generator {
 
     /// Generate ID (returns error on sequence exhaustion)
     pub fn generate_internal(&self) -> Result<u64, GeneratorError> {
-        let current_timestamp = self.config.current_timestamp_ms();
-
         // Lock-free CAS loop with injected state
         loop {
+            let current_timestamp = self.config.current_timestamp_ms();
             let current_packed = self.state.packed.load(Ordering::Acquire);
             let (last_timestamp, current_sequence) =
                 self.state.unpack_state(current_packed, self.config);
