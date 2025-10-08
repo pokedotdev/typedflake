@@ -32,7 +32,7 @@ impl IdContext {
         self.default_generator.get_or_init(|| {
             let (worker_id, process_id) = global::get_default_instance();
             self.create_generator(worker_id, process_id)
-                .expect("Default instance (0, 0) should always be valid")
+                .expect("Default instance should always be valid")
         })
     }
 
@@ -160,11 +160,11 @@ mod tests {
         let config = Config::default();
         let context = IdContext::new(config);
 
-        // Generate using default generator (0, 0)
+        // Generate using default generator
         let default_gen = context.default_generator();
         let id1 = default_gen.generate().unwrap();
 
-        // Create manual generator for (0, 0)
+        // Create manual generator for same instance (0, 0) to test state sharing
         let manual_gen = context.create_generator(0, 0).unwrap();
         let id2 = manual_gen.generate().unwrap();
 

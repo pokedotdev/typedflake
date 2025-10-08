@@ -46,13 +46,13 @@ macro_rules! id {
                     CONTEXT.get_or_init(|| $crate::context::IdContext::new($config))
                 }
 
-                /// Generate a new ID with default instance (0, 0)
+                /// Generate a new ID with default instance
                 pub fn generate() -> Result<Self, $crate::generator::GeneratorError> {
                     let id = Self::context().default_generator().generate()?;
                     Ok(Self(id))
                 }
 
-                /// Generate a new ID with default instance (0, 0), blocking until next millisecond if sequence is exhausted
+                /// Generate a new ID with default instance, blocking until next millisecond if sequence is exhausted
                 pub fn generate_blocking() -> Self {
                     let id = Self::context().default_generator().generate_blocking();
                     Self(id)
@@ -175,7 +175,7 @@ mod tests {
 
         crate::id!(CustomId, CUSTOM_CONFIG);
 
-        // Test default instance (0, 0)
+        // Test default instance (unconfigured default is 0, 0)
         let id = CustomId::generate().unwrap();
         let components = id.components();
 

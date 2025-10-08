@@ -61,7 +61,7 @@ pub fn get_default_config() -> Config {
     GLOBAL_DEFAULTS.get_or_init(GlobalDefaults::default).config
 }
 
-/// Get the default instance, initializing with (0, 0) if not set
+/// Get the default instance, initializing with (0, 0) if not configured
 pub fn get_default_instance() -> (u64, u64) {
     GLOBAL_DEFAULTS
         .get_or_init(GlobalDefaults::default)
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn default_instance_zero_zero() {
-        // Before setting anything, should return (0, 0)
+        // Unconfigured default should return (0, 0)
         let (worker_id, process_id) = get_default_instance();
         assert_eq!(worker_id, 0);
         assert_eq!(process_id, 0);

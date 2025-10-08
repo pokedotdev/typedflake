@@ -49,7 +49,7 @@
 //! // Create an ID type with default configuration
 //! typedflake::id!(UserId);
 //!
-//! // Generate IDs (default instance with worker_id=0, process_id=0)
+//! // Generate IDs (using default instance)
 //! let user_id = UserId::generate().unwrap();
 //! println!("Generated user ID: {}", user_id);
 //!
