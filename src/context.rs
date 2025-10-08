@@ -129,4 +129,51 @@ mod tests {
         assert_eq!(process_gen.worker_id(), 0); // default
         assert_eq!(process_gen.process_id(), 5);
     }
+
+    #[test]
+    fn generators_share_state_but_not_instances() {
+        let config = Config::default();
+        let context = IdContext::new(config);
+
+        // Create two generators with same (worker_id, process_id)
+        let gen1 = context.create_generator(5, 3).unwrap();
+        let gen2 = context.create_generator(5, 3).unwrap();
+
+        // Generators are different instances
+        assert!(!std::ptr::eq(&gen1, &gen2));
+
+        // But they share the same underlying State (verified by sequential sequence numbers)
+        let id1 = gen1.generate().unwrap();
+        let id2 = gen2.generate().unwrap();
+
+        // Extract sequences from both IDs
+        let seq1 = (id1 >> config.layout().sequence_shift()) & config.layout().sequence_max();
+        let seq2 = (id2 >> config.layout().sequence_shift()) & config.layout().sequence_max();
+
+        // Sequences should be sequential (0, 1) proving shared state
+        assert_eq!(seq1, 0);
+        assert_eq!(seq2, 1);
+    }
+
+    #[test]
+    fn default_generator_shares_state_with_manual_instance() {
+        let config = Config::default();
+        let context = IdContext::new(config);
+
+        // Generate using default generator (0, 0)
+        let default_gen = context.default_generator();
+        let id1 = default_gen.generate().unwrap();
+
+        // Create manual generator for (0, 0)
+        let manual_gen = context.create_generator(0, 0).unwrap();
+        let id2 = manual_gen.generate().unwrap();
+
+        // Extract sequences
+        let seq1 = (id1 >> config.layout().sequence_shift()) & config.layout().sequence_max();
+        let seq2 = (id2 >> config.layout().sequence_shift()) & config.layout().sequence_max();
+
+        // Sequences should be sequential, proving they share the same State
+        assert_eq!(seq1, 0);
+        assert_eq!(seq2, 1);
+    }
 }
