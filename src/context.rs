@@ -42,8 +42,8 @@ impl IdContext {
         worker_id: u64,
         process_id: u64,
     ) -> Result<Generator, ValidationError> {
-        // Get pre-allocated state (no lookup overhead)
-        let state = self.states.get_state(worker_id, process_id).clone();
+        // Get state (lazy initialization on first access)
+        let state = self.states.get_state(worker_id, process_id);
 
         Generator::new_with_state(self.config(), state, worker_id, process_id)
     }
