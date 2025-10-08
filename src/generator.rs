@@ -54,8 +54,8 @@ impl Generator {
         })
     }
 
-    /// Generate ID with direct state access
-    pub fn generate(&self) -> Result<u64, GeneratorError> {
+    /// Generate ID with direct state access (returns error on sequence exhaustion)
+    pub fn generate_internal(&self) -> Result<u64, GeneratorError> {
         let current_timestamp = self.config.current_timestamp_ms();
 
         // Lock-free compare-and-swap retry loop using injected state
@@ -98,10 +98,10 @@ impl Generator {
         }
     }
 
-    /// Generate ID with blocking on sequence exhaustion
-    pub fn generate_blocking(&self) -> u64 {
+    /// Generate ID, blocking on sequence exhaustion
+    pub fn generate(&self) -> u64 {
         loop {
-            match self.generate() {
+            match self.generate_internal() {
                 Ok(id) => return id,
                 Err(GeneratorError::SequenceExhausted { .. }) => {
                     self.wait_for_next_millis();
@@ -261,8 +261,8 @@ mod tests {
         let generator = Generator::new(config, 5, 3).unwrap();
 
         // Generate IDs
-        let id1 = generator.generate().unwrap();
-        let id2 = generator.generate().unwrap();
+        let id1 = generator.generate();
+        let id2 = generator.generate();
 
         // IDs should be different
         assert_ne!(id1, id2);
@@ -279,7 +279,7 @@ mod tests {
         let config = Config::default();
         let generator = Generator::new(config, 10, 2).unwrap();
 
-        let id = generator.generate().unwrap();
+        let id = generator.generate();
         let components = generator.components(id);
 
         // Verify components match generator config
@@ -294,7 +294,7 @@ mod tests {
         let config = Config::default();
         let generator = Generator::new(config, 15, 7).unwrap();
 
-        let id = generator.generate().unwrap();
+        let id = generator.generate();
         let (timestamp, worker_id, process_id, sequence) = generator.decompose(id);
         let recomposed = generator
             .compose_custom(timestamp, worker_id, process_id, sequence)

@@ -25,9 +25,9 @@
 //! ```rust
 //! # typedflake::id!(UserId);
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let raw_value = UserId::generate()?.as_u64();
-//! # let (ts, _, _, seq) = UserId::generate()?.decompose();
-//! # let (ts2, worker, process, seq2) = UserId::generate()?.decompose();
+//! # let raw_value = UserId::generate().as_u64();
+//! # let (ts, _, _, seq) = UserId::generate().decompose();
+//! # let (ts2, worker, process, seq2) = UserId::generate().decompose();
 //! // ✅ Validated constructors (preferred)
 //! let id = UserId::try_from_u64(raw_value)?;                          // From raw u64
 //! let id: UserId = raw_value.try_into()?;                             // Via TryFrom
@@ -50,12 +50,12 @@
 //! typedflake::id!(UserId);
 //!
 //! // Generate IDs (using default instance)
-//! let user_id = UserId::generate().unwrap();
+//! let user_id = UserId::generate();
 //! println!("Generated user ID: {}", user_id);
 //!
 //! // Generate with specific instance
 //! let user_instance = UserId::instance(15, 7).unwrap();
-//! let custom_id = user_instance.generate().unwrap();
+//! let custom_id = user_instance.generate();
 //!
 //! // Access components
 //! let timestamp = user_id.timestamp();
@@ -83,8 +83,8 @@
 //!
 //! typedflake::id!(UserId, USER_ALGORITHM);
 //!
-//! let session_id = SessionId::generate().unwrap();
-//! let user_id = UserId::generate().unwrap();
+//! let session_id = SessionId::generate();
+//! let user_id = UserId::generate();
 //! println!("Generated session ID: {}", session_id);
 //! println!("Generated user ID: {}", user_id);
 //! ```
@@ -108,8 +108,8 @@
 //! let auth_instance = AuthServiceId::instance(1, 0).unwrap();
 //! let payment_instance = PaymentServiceId::instance(2, 1).unwrap();
 //!
-//! let auth_id = auth_instance.generate().unwrap();
-//! let payment_id = payment_instance.generate().unwrap();
+//! let auth_id = auth_instance.generate();
+//! let payment_id = payment_instance.generate();
 //! ```
 //!
 //! ## ID Operations
@@ -117,7 +117,7 @@
 //! ```rust
 //! # typedflake::id!(ExampleId);
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let id = ExampleId::generate().unwrap();
+//! let id = ExampleId::generate();
 //!
 //! // Convert to/from u64
 //! let raw: u64 = id.as_u64();

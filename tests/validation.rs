@@ -3,12 +3,13 @@ use typedflake::{Config, Epoch};
 #[test]
 fn zero_process_bits() {
     // Config with zero process bits
-    const CONFIG: Config = Config::new_unchecked(typedflake::BitLayout::new(42, 10, 0, 12), Epoch::DEFAULT);
+    const CONFIG: Config =
+        Config::new_unchecked(typedflake::BitLayout::new(42, 10, 0, 12), Epoch::DEFAULT);
     typedflake::id!(ZeroProcessId, CONFIG);
 
     // Test with instance that has worker_id but process_id must be 0
     let instance = ZeroProcessId::instance(100, 0).unwrap();
-    let id = instance.generate().unwrap();
+    let id = instance.generate();
     let components = id.components();
 
     assert_eq!(components.worker_id, 100);
@@ -26,7 +27,7 @@ fn zero_process_bits() {
 
     // Test worker method (process should default to 0)
     let worker_instance = ZeroProcessId::worker(100).unwrap();
-    let worker_id = worker_instance.generate().unwrap();
+    let worker_id = worker_instance.generate();
     assert_eq!(worker_id.worker_id(), 100);
     assert_eq!(worker_id.process_id(), 0);
 
@@ -37,12 +38,13 @@ fn zero_process_bits() {
 #[test]
 fn zero_worker_bits() {
     // Config with zero worker bits
-    const CONFIG: Config = Config::new_unchecked(typedflake::BitLayout::new(42, 0, 10, 12), Epoch::DEFAULT);
+    const CONFIG: Config =
+        Config::new_unchecked(typedflake::BitLayout::new(42, 0, 10, 12), Epoch::DEFAULT);
     typedflake::id!(ZeroWorkerBitsId, CONFIG);
 
     // Test that worker_id must be 0
     let valid_instance = ZeroWorkerBitsId::instance(0, 100).unwrap();
-    let id = valid_instance.generate().unwrap();
+    let id = valid_instance.generate();
     let components = id.components();
 
     assert_eq!(components.worker_id, 0);
@@ -53,7 +55,7 @@ fn zero_worker_bits() {
 
     // Test process method works (worker defaults to 0)
     let process_instance = ZeroWorkerBitsId::process(500).unwrap();
-    let process_id = process_instance.generate().unwrap();
+    let process_id = process_instance.generate();
     assert_eq!(process_id.worker_id(), 0);
     assert_eq!(process_id.process_id(), 500);
 

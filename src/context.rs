@@ -92,8 +92,8 @@ mod tests {
         let generator = context.create_generator(5, 3).unwrap();
 
         // Generate IDs
-        let id1 = generator.generate().unwrap();
-        let id2 = generator.generate().unwrap();
+        let id1 = generator.generate();
+        let id2 = generator.generate();
 
         // IDs should be different
         assert_ne!(id1, id2);
@@ -108,7 +108,7 @@ mod tests {
 
         // Test default generator
         let default_gen = context.default_generator();
-        let id = default_gen.generate().unwrap();
+        let id = default_gen.generate();
         assert!(id > 0);
 
         // Should be same instance on subsequent calls
@@ -143,8 +143,8 @@ mod tests {
         assert!(!std::ptr::eq(&gen1, &gen2));
 
         // But they share the same underlying State (verified by sequential sequence numbers)
-        let id1 = gen1.generate().unwrap();
-        let id2 = gen2.generate().unwrap();
+        let id1 = gen1.generate();
+        let id2 = gen2.generate();
 
         // Extract sequences from both IDs
         let seq1 = (id1 >> config.layout().sequence_shift()) & config.layout().sequence_max();
@@ -162,11 +162,11 @@ mod tests {
 
         // Generate using default generator
         let default_gen = context.default_generator();
-        let id1 = default_gen.generate().unwrap();
+        let id1 = default_gen.generate();
 
         // Create manual generator for same instance (0, 0) to test state sharing
         let manual_gen = context.create_generator(0, 0).unwrap();
-        let id2 = manual_gen.generate().unwrap();
+        let id2 = manual_gen.generate();
 
         // Extract sequences
         let seq1 = (id1 >> config.layout().sequence_shift()) & config.layout().sequence_max();

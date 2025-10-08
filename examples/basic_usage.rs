@@ -17,9 +17,9 @@ fn main() {
 
     // Generate some IDs with default instance (0, 0)
     println!("1. Basic ID Generation (default instance):");
-    let user_id = UserId::generate().unwrap();
-    let order_id = OrderId::generate().unwrap();
-    let session_id = SessionId::generate().unwrap();
+    let user_id = UserId::generate();
+    let order_id = OrderId::generate();
+    let session_id = SessionId::generate();
 
     println!("User ID:    {user_id}");
     println!("Order ID:   {order_id}");
@@ -31,9 +31,9 @@ fn main() {
     let process_instance = UserId::process(7).unwrap();
     let full_instance = UserId::instance(31, 3).unwrap();
 
-    let worker_id = worker_instance.generate().unwrap();
-    let process_id = process_instance.generate().unwrap();
-    let full_id = full_instance.generate().unwrap();
+    let worker_id = worker_instance.generate();
+    let process_id = process_instance.generate();
+    let full_id = full_instance.generate();
 
     println!("Worker instance ID (15, 0):  {worker_id}");
     println!("Process instance ID (0, 7):  {process_id}");
@@ -96,7 +96,7 @@ fn main() {
     println!("\n9. Multiple ID Generation with Threading Simulation:");
     for thread_id in 0..5 {
         let instance = UserId::process(thread_id).unwrap();
-        let id = instance.generate_blocking();
+        let id = instance.generate();
         println!("Thread {thread_id}:");
         println!("ID: {id}");
         let (timestamp, worker_id, process_id, sequence) = id.decompose();

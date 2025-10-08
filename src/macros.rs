@@ -15,15 +15,9 @@ macro_rules! id {
             }
 
             impl [<$name Generator>] {
-                /// Generate an ID using pre-injected state (no lookup overhead)
-                pub fn generate(&self) -> Result<$name, $crate::generator::GeneratorError> {
-                    let id = self.inner.generate()?;
-                    Ok($name(id))
-                }
-
                 /// Generate an ID using pre-injected state, blocking on sequence exhaustion
-                pub fn generate_blocking(&self) -> $name {
-                    let id = self.inner.generate_blocking();
+                pub fn generate(&self) -> $name {
+                    let id = self.inner.generate();
                     $name(id)
                 }
 
@@ -46,15 +40,9 @@ macro_rules! id {
                     CONTEXT.get_or_init(|| $crate::context::IdContext::new($config))
                 }
 
-                /// Generate a new ID with default instance
-                pub fn generate() -> Result<Self, $crate::generator::GeneratorError> {
-                    let id = Self::context().default_generator().generate()?;
-                    Ok(Self(id))
-                }
-
                 /// Generate a new ID with default instance, blocking until next millisecond if sequence is exhausted
-                pub fn generate_blocking() -> Self {
-                    let id = Self::context().default_generator().generate_blocking();
+                pub fn generate() -> Self {
+                    let id = Self::context().default_generator().generate();
                     Self(id)
                 }
 
@@ -154,8 +142,8 @@ mod tests {
     fn macro_generates_default_config() {
         crate::id!(TestId);
 
-        let id1 = TestId::generate().unwrap();
-        let id2 = TestId::generate().unwrap();
+        let id1 = TestId::generate();
+        let id2 = TestId::generate();
 
         assert_ne!(id1, id2);
         assert!(id1.as_u64() > 0);
@@ -176,7 +164,7 @@ mod tests {
         crate::id!(CustomId, CUSTOM_CONFIG);
 
         // Test default instance (unconfigured default is 0, 0)
-        let id = CustomId::generate().unwrap();
+        let id = CustomId::generate();
         let components = id.components();
 
         assert_eq!(components.worker_id, 0);
@@ -184,7 +172,7 @@ mod tests {
 
         // Test specific instance
         let instance = CustomId::instance(50, 5).unwrap();
-        let instance_id = instance.generate().unwrap();
+        let instance_id = instance.generate();
         let instance_components = instance_id.components();
 
         assert_eq!(instance_components.worker_id, 50);
@@ -220,7 +208,7 @@ mod tests {
     fn extract_individual_components() {
         crate::id!(ComponentId);
 
-        let id = ComponentId::generate().unwrap();
+        let id = ComponentId::generate();
 
         let timestamp = id.timestamp();
         let worker_id = id.worker_id();
@@ -239,7 +227,7 @@ mod tests {
     fn u64_conversions() {
         crate::id!(ConversionId);
 
-        let id = ConversionId::generate().unwrap();
+        let id = ConversionId::generate();
         let raw = id.as_u64();
 
         let id2 = ConversionId::from_u64_unchecked(raw);
@@ -256,7 +244,7 @@ mod tests {
     fn string_display_and_parsing() {
         crate::id!(ParseId);
 
-        let id = ParseId::generate().unwrap();
+        let id = ParseId::generate();
         let id_str = id.to_string();
 
         let parsed_id: ParseId = id_str.parse().unwrap();
@@ -268,10 +256,10 @@ mod tests {
         crate::id!(UserId);
         crate::id!(OrderId);
 
-        let user_id1 = UserId::generate().unwrap();
-        let user_id2 = UserId::generate().unwrap();
-        let order_id1 = OrderId::generate().unwrap();
-        let order_id2 = OrderId::generate().unwrap();
+        let user_id1 = UserId::generate();
+        let user_id2 = UserId::generate();
+        let order_id1 = OrderId::generate();
+        let order_id2 = OrderId::generate();
 
         // Verify that each type generates different IDs
         assert_ne!(user_id1, user_id2);
@@ -297,21 +285,21 @@ mod tests {
 
         // Test worker method
         let worker_instance = InstanceMethodId::worker(50).unwrap();
-        let worker_id = worker_instance.generate().unwrap();
+        let worker_id = worker_instance.generate();
         let worker_components = worker_id.components();
         assert_eq!(worker_components.worker_id, 50);
         assert_eq!(worker_components.process_id, 0);
 
         // Test process method
         let process_instance = InstanceMethodId::process(5).unwrap();
-        let process_id = process_instance.generate().unwrap();
+        let process_id = process_instance.generate();
         let process_components = process_id.components();
         assert_eq!(process_components.worker_id, 0);
         assert_eq!(process_components.process_id, 5);
 
         // Test instance method
         let full_instance = InstanceMethodId::instance(50, 5).unwrap();
-        let full_id = full_instance.generate().unwrap();
+        let full_id = full_instance.generate();
         let full_components = full_id.components();
         assert_eq!(full_components.worker_id, 50);
         assert_eq!(full_components.process_id, 5);
@@ -326,8 +314,8 @@ mod tests {
         let instance2 = MultiInstanceId::instance(1, 2).unwrap();
 
         // Generate IDs from both instances
-        let id1 = instance1.generate().unwrap();
-        let id2 = instance2.generate().unwrap();
+        let id1 = instance1.generate();
+        let id2 = instance2.generate();
 
         let components1 = id1.components();
         let components2 = id2.components();
@@ -350,8 +338,8 @@ mod tests {
         assert_eq!(stateful_gen.process_id(), 7);
 
         // Generate IDs with pre-injected state (no lookup overhead)
-        let id1 = stateful_gen.generate().unwrap();
-        let id2 = stateful_gen.generate().unwrap();
+        let id1 = stateful_gen.generate();
+        let id2 = stateful_gen.generate();
 
         // Verify IDs have correct components
         let components1 = id1.components();
@@ -375,7 +363,7 @@ mod tests {
         crate::id!(ValidationTestId, CUSTOM_CONFIG);
 
         // Generate a valid ID
-        let valid_id = ValidationTestId::generate().unwrap();
+        let valid_id = ValidationTestId::generate();
         let raw = valid_id.as_u64();
 
         // Valid ID should pass validation
@@ -391,7 +379,7 @@ mod tests {
     fn try_from_trait_validates() {
         crate::id!(TryFromTestId);
 
-        let valid_id = TryFromTestId::generate().unwrap();
+        let valid_id = TryFromTestId::generate();
         let raw = valid_id.as_u64();
 
         // TryFrom should work for valid IDs
@@ -483,7 +471,7 @@ mod tests {
         crate::id!(ParseValidationId, CUSTOM_CONFIG);
 
         // Valid ID string should parse
-        let valid_id = ParseValidationId::generate().unwrap();
+        let valid_id = ParseValidationId::generate();
         let id_str = valid_id.to_string();
         let parsed: Result<ParseValidationId, _> = id_str.parse();
         assert!(parsed.is_ok());

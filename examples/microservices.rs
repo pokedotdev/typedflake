@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     typedflake::global::set_default_instance(worker_id, process_id)?;
 
     // All subsequent ID generation uses default config
-    let user_id = UserId::generate()?; // Uses default config + instance
+    let user_id = UserId::generate(); // Uses default config + instance
 
     println!("User ID: {}", user_id.timestamp());
     Ok(())

@@ -12,7 +12,7 @@ typedflake::id!(CustomBenchId, CUSTOM_CONFIG);
 fn benchmark_id_generation(c: &mut Criterion) {
     c.bench_function("id_generation", |b| {
         b.iter(|| {
-            let id = BenchId::generate_blocking();
+            let id = BenchId::generate();
             black_box(id)
         })
     });
@@ -21,14 +21,14 @@ fn benchmark_id_generation(c: &mut Criterion) {
 fn benchmark_id_generation_custom(c: &mut Criterion) {
     c.bench_function("id_generation_custom_config", |b| {
         b.iter(|| {
-            let id = CustomBenchId::generate_blocking();
+            let id = CustomBenchId::generate();
             black_box(id)
         })
     });
 }
 
 fn benchmark_compose_decompose(c: &mut Criterion) {
-    let id = BenchId::generate_blocking();
+    let id = BenchId::generate();
     let (timestamp, worker_id, process_id, sequence) = id.decompose();
 
     c.bench_function("compose_custom_operation", |b| {
@@ -53,7 +53,7 @@ fn benchmark_compose_decompose(c: &mut Criterion) {
 }
 
 fn benchmark_component_access(c: &mut Criterion) {
-    let id = BenchId::generate_blocking();
+    let id = BenchId::generate();
 
     c.bench_function("individual_timestamp_access", |b| {
         b.iter(|| {
@@ -91,14 +91,14 @@ fn benchmark_component_access(c: &mut Criterion) {
 fn benchmark_blocking_generation(c: &mut Criterion) {
     c.bench_function("blocking_generation", |b| {
         b.iter(|| {
-            let id = BenchId::generate_blocking();
+            let id = BenchId::generate();
             black_box(id)
         })
     });
 }
 
 fn benchmark_conversions(c: &mut Criterion) {
-    let id = BenchId::generate_blocking();
+    let id = BenchId::generate();
     let raw = id.as_u64();
 
     c.bench_function("as_u64_conversion", |b| {
@@ -124,7 +124,7 @@ fn benchmark_conversions(c: &mut Criterion) {
 }
 
 fn benchmark_validation(c: &mut Criterion) {
-    let id = BenchId::generate_blocking();
+    let id = BenchId::generate();
     let (timestamp, worker_id, process_id, sequence) = id.decompose();
 
     c.bench_function("compose_custom_validated", |b| {

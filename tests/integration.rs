@@ -12,7 +12,7 @@ fn custom_config_with_defaults() {
         )
     );
 
-    let id = CustomConfigId::generate().unwrap();
+    let id = CustomConfigId::generate();
     let components = id.components();
 
     // Should use custom config, not default config
@@ -20,12 +20,12 @@ fn custom_config_with_defaults() {
 
     // Verify bit allocations match custom config (8 worker bits = max 255)
     let instance_max_worker = CustomConfigId::instance(255, 0).unwrap();
-    let id_max_worker = instance_max_worker.generate().unwrap();
+    let id_max_worker = instance_max_worker.generate();
     assert_eq!(id_max_worker.worker_id(), 255);
 
     // Verify process bits (4 bits = max 15)
     let instance_max_process = CustomConfigId::instance(0, 15).unwrap();
-    let id_max_process = instance_max_process.generate().unwrap();
+    let id_max_process = instance_max_process.generate();
     assert_eq!(id_max_process.process_id(), 15);
 
     // Verify sequence bits (10 bits = max 1023)
@@ -35,22 +35,20 @@ fn custom_config_with_defaults() {
 #[test]
 fn sequence_exhaustion_and_recovery() {
     // Use config with very small sequence bits to force exhaustion (4 bits = max 15 IDs/ms)
-    typedflake::id!(
-        SmallSeqId,
-        Config::new_unchecked(
-            typedflake::BitLayout::new(50, 5, 5, 4),
-            typedflake::Epoch::DEFAULT
-        )
+    // Test the internal Generator API directly since the public API (generate()) now blocks
+    let config = Config::new_unchecked(
+        typedflake::BitLayout::new(50, 5, 5, 4),
+        typedflake::Epoch::DEFAULT,
     );
 
-    let instance = SmallSeqId::instance(1, 1).unwrap();
+    let generator = typedflake::Generator::new(config, 1, 1).unwrap();
 
-    // Generate IDs until sequence is exhausted
+    // Generate IDs until sequence is exhausted using the internal API
     let mut count = 0;
-    let mut last_result = Ok(());
+    let mut last_result = Ok(0);
 
     for _ in 0..100 {
-        match instance.generate() {
+        match generator.generate_internal() {
             Ok(_) => count += 1,
             Err(e) => {
                 last_result = Err(e);
@@ -85,11 +83,11 @@ fn sequence_exhaustion_and_recovery() {
         panic!("Expected SequenceExhausted error, got: {last_result:?}");
     }
 
-    // Verify recovery in next millisecond - blocking should eventually succeed
+    // Verify recovery in next millisecond - the public blocking generate() should succeed
     std::thread::sleep(std::time::Duration::from_millis(2));
-    let recovered_id = instance.generate();
+    let recovered_id = generator.generate();
     assert!(
-        recovered_id.is_ok(),
+        recovered_id > 0,
         "Should be able to generate ID in next millisecond"
     );
 }

@@ -90,7 +90,7 @@ fn lock_free_stress_8_threads() {
         let mut ids = Vec::with_capacity(IDS_PER_THREAD);
 
         for _ in 0..IDS_PER_THREAD {
-            ids.push(instance.generate_blocking());
+            ids.push(instance.generate());
         }
 
         // Verify thread-local uniqueness
@@ -117,7 +117,7 @@ fn state_isolation_per_instance() {
 
         let mut ids = Vec::with_capacity(IDS_PER_INSTANCE);
         for _ in 0..IDS_PER_INSTANCE {
-            ids.push(instance.generate_blocking());
+            ids.push(instance.generate());
         }
 
         // Verify IDs have correct worker/process components
@@ -161,9 +161,7 @@ fn concurrent_min_boundary() {
 
     let thread_results = run_concurrent_generation(NUM_THREADS, IDS_PER_THREAD, |_| {
         let instance = MinInstanceId::instance(WORKER_ID, PROCESS_ID).unwrap();
-        (0..IDS_PER_THREAD)
-            .map(|_| instance.generate_blocking())
-            .collect()
+        (0..IDS_PER_THREAD).map(|_| instance.generate()).collect()
     });
 
     let all_ids: Vec<_> = thread_results.into_iter().flatten().collect();
@@ -186,9 +184,7 @@ fn concurrent_max_boundary() {
 
     let thread_results = run_concurrent_generation(NUM_THREADS, IDS_PER_THREAD, |_| {
         let instance = MaxInstanceId::instance(WORKER_ID, PROCESS_ID).unwrap();
-        (0..IDS_PER_THREAD)
-            .map(|_| instance.generate_blocking())
-            .collect()
+        (0..IDS_PER_THREAD).map(|_| instance.generate()).collect()
     });
 
     let all_ids: Vec<_> = thread_results.into_iter().flatten().collect();
@@ -201,9 +197,6 @@ fn concurrent_max_boundary() {
 
 #[test]
 fn extreme_stress_16_threads() {
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
     typedflake::id!(ExtremeStressId);
 
     const NUM_THREADS: usize = 16;
@@ -211,32 +204,14 @@ fn extreme_stress_16_threads() {
     const WORKER_ID: u64 = 5;
     const PROCESS_ID: u64 = 3;
 
-    let success_count = Arc::new(AtomicUsize::new(0));
-    let error_count = Arc::new(AtomicUsize::new(0));
-
-    // Clone Arcs for closure
-    let success_clone = Arc::clone(&success_count);
-    let error_clone = Arc::clone(&error_count);
-
-    // Run extreme stress test with error counting
+    // Run extreme stress test - generate() now blocks automatically on sequence exhaustion
     let thread_results =
         run_concurrent_generation(NUM_THREADS, IDS_PER_THREAD, move |thread_idx| {
-            let success = Arc::clone(&success_clone);
-            let errors = Arc::clone(&error_clone);
             let instance = ExtremeStressId::instance(WORKER_ID, PROCESS_ID).unwrap();
             let mut ids = Vec::with_capacity(IDS_PER_THREAD);
 
             for _ in 0..IDS_PER_THREAD {
-                match instance.generate() {
-                    Ok(id) => {
-                        ids.push(id);
-                        success.fetch_add(1, Ordering::Relaxed);
-                    }
-                    Err(_) => {
-                        ids.push(instance.generate_blocking());
-                        errors.fetch_add(1, Ordering::Relaxed);
-                    }
-                }
+                ids.push(instance.generate());
             }
 
             // Verify thread-local uniqueness
@@ -252,10 +227,10 @@ fn extreme_stress_16_threads() {
         (c.worker_id, c.process_id)
     });
 
-    let successes = success_count.load(Ordering::Relaxed);
-    let errors = error_count.load(Ordering::Relaxed);
     println!(
-        "Extreme stress: {successes} successes, {errors} exhaustions across {NUM_THREADS} threads"
+        "Extreme stress: {} total IDs generated across {} threads",
+        all_ids.len(),
+        NUM_THREADS
     );
-    assert_eq!(successes + errors, NUM_THREADS * IDS_PER_THREAD);
+    assert_eq!(all_ids.len(), NUM_THREADS * IDS_PER_THREAD);
 }

@@ -20,8 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     typedflake::global::set_defaults(DISCORD_CONFIG, worker_id, process_id)?;
 
     // All subsequent ID generation uses default config
-    let user_id = UserId::generate()?;
-    let server_id = ServerId::generate()?;
+    let user_id = UserId::generate();
+    let server_id = ServerId::generate();
 
     println!("User ID:  {user_id}");
     println!("Server ID: {server_id}");
