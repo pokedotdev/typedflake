@@ -94,16 +94,13 @@ macro_rules! id {
                     Self::context().default_generator().extract_sequence(self.0)
                 }
 
-                /// Compose an ID from timestamp and sequence with validation.
-                /// Uses generator's worker_id and process_id.
+                /// Compose ID with validation (uses default worker_id and process_id)
                 pub fn compose(timestamp: u64, sequence: u64) -> Result<Self, $crate::config::ValidationError> {
                     let id = Self::context().default_generator().compose(timestamp, sequence)?;
                     Ok(Self(id))
                 }
 
-                /// Compose an ID from timestamp and sequence without validation.
-                /// Uses generator's worker_id and process_id.
-                /// Values exceeding bit limits will be silently masked.
+                /// Compose ID without validation (uses defaults, masks overflow)
                 pub fn compose_unchecked(timestamp: u64, sequence: u64) -> Self {
                     let id = Self::context().default_generator().compose_unchecked(timestamp, sequence);
                     Self(id)
@@ -120,8 +117,7 @@ macro_rules! id {
                     Ok(Self(id))
                 }
 
-                /// Compose an ID from all components without validation.
-                /// Components exceeding bit limits will be silently masked.
+                /// Compose from all components without validation (values exceeding limits are masked)
                 pub fn compose_custom_unchecked(timestamp: u64, worker_id: u64, process_id: u64, sequence: u64) -> Self {
                     let id = Self::context().default_generator().compose_custom_unchecked(timestamp, worker_id, process_id, sequence);
                     Self(id)
@@ -150,16 +146,14 @@ mod tests {
         assert!(id2.as_u64() > 0);
 
         let components = id1.components();
-        assert_eq!(components.worker_id, 0); // Default config
-        assert_eq!(components.process_id, 0); // Default config
+        assert_eq!(components.worker_id, 0);
+        assert_eq!(components.process_id, 0);
     }
 
     #[test]
     fn macro_with_custom_config() {
-        const CUSTOM_CONFIG: Config = Config::new_unchecked(
-            BitLayout::new(42, 8, 4, 10), // bits: timestamp, worker, process, sequence
-            Epoch::new(1_600_000_000_000), // epoch
-        );
+        const CUSTOM_CONFIG: Config =
+            Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
         crate::id!(CustomId, CUSTOM_CONFIG);
 

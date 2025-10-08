@@ -19,7 +19,7 @@ pub enum DefaultConfigError {
     DefaultsAlreadySet,
 }
 
-/// Set both default configuration and instance (can only be called once)
+/// Set default config and instance (can only be called once)
 pub fn set_defaults(
     config: Config,
     worker_id: u64,
@@ -34,7 +34,7 @@ pub fn set_defaults(
         .map_err(|_| DefaultConfigError::DefaultsAlreadySet)
 }
 
-/// Set the default configuration (can only be called once)
+/// Set default config (can only be called once)
 pub fn set_default_config(config: Config) -> Result<(), DefaultConfigError> {
     let defaults = GlobalDefaults {
         config,
@@ -45,7 +45,7 @@ pub fn set_default_config(config: Config) -> Result<(), DefaultConfigError> {
         .map_err(|_| DefaultConfigError::DefaultsAlreadySet)
 }
 
-/// Set the default instance (worker_id, process_id) - can only be called once
+/// Set default instance (can only be called once)
 pub fn set_default_instance(worker_id: u64, process_id: u64) -> Result<(), DefaultConfigError> {
     let defaults = GlobalDefaults {
         config: Config::default(),
@@ -56,12 +56,12 @@ pub fn set_default_instance(worker_id: u64, process_id: u64) -> Result<(), Defau
         .map_err(|_| DefaultConfigError::DefaultsAlreadySet)
 }
 
-/// Get the default configuration, initializing with hardcoded default if not set
+/// Get default config (initializes if not set)
 pub fn get_default_config() -> Config {
     GLOBAL_DEFAULTS.get_or_init(GlobalDefaults::default).config
 }
 
-/// Get the default instance, initializing with (0, 0) if not configured
+/// Get default instance (initializes to (0,0) if not set)
 pub fn get_default_instance() -> (u64, u64) {
     GLOBAL_DEFAULTS
         .get_or_init(GlobalDefaults::default)

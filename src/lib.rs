@@ -69,8 +69,8 @@
 //!
 //! // Custom algorithm configuration
 //! const SESSION_ALGORITHM: Config = Config::new_unchecked(
-//!     BitLayout::new(42, 10, 0, 12),   // bits: timestamp, worker, process, sequence
-//!     Epoch::new(1_600_000_000_000), // epoch
+//!     BitLayout::new(42, 10, 0, 12),
+//!     Epoch::new(1_600_000_000_000),
 //! );
 //!
 //! typedflake::id!(SessionId, SESSION_ALGORITHM);
@@ -96,7 +96,7 @@
 //!
 //! // Shared algorithm configuration across services
 //! const SHARED_ALGORITHM: Config = Config::new_unchecked(
-//!     BitLayout::new(42, 6, 4, 12),   // bits: timestamp, worker, process, sequence
+//!     BitLayout::new(42, 6, 4, 12),
 //!     Epoch::new(1_640_000_000_000),  // 2022 epoch
 //! );
 //!

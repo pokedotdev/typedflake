@@ -54,11 +54,11 @@ impl Generator {
         })
     }
 
-    /// Generate ID with direct state access (returns error on sequence exhaustion)
+    /// Generate ID (returns error on sequence exhaustion)
     pub fn generate_internal(&self) -> Result<u64, GeneratorError> {
         let current_timestamp = self.config.current_timestamp_ms();
 
-        // Lock-free compare-and-swap retry loop using injected state
+        // Lock-free CAS loop with injected state
         loop {
             let current_packed = self.state.packed.load(Ordering::Acquire);
             let (last_timestamp, current_sequence) =
@@ -111,7 +111,7 @@ impl Generator {
         }
     }
 
-    /// Compose ID using generator's bound worker_id and process_id with validation
+    /// Compose ID with validation (uses bound worker_id and process_id)
     pub fn compose(&self, timestamp: u64, sequence: u64) -> Result<u64, ValidationError> {
         // Validate timestamp and sequence (worker/process already validated at construction)
         if timestamp > self.config.layout().timestamp_max() {
@@ -131,8 +131,7 @@ impl Generator {
         Ok(self.compose_unchecked(timestamp, sequence))
     }
 
-    /// Compose ID using generator's bound worker_id and process_id without validation.
-    /// Timestamp and sequence values exceeding bit limits will be silently masked.
+    /// Compose ID without validation (uses bound worker/process, masks overflow)
     #[inline]
     pub fn compose_unchecked(&self, timestamp: u64, sequence: u64) -> u64 {
         let layout = self.config.layout();
@@ -226,8 +225,7 @@ impl Generator {
         Ok(self.compose_custom_unchecked(timestamp, worker_id, process_id, sequence))
     }
 
-    /// Compose an ID from individual components without validation.
-    /// Components exceeding bit limits will be silently masked.
+    /// Compose from all components without validation (values exceeding limits are masked)
     pub fn compose_custom_unchecked(
         &self,
         timestamp: u64,
@@ -308,10 +306,8 @@ mod tests {
     #[test]
     fn max_value_composition_and_overflow() {
         // Test compose/decompose with maximum values for custom config
-        let config = Config::new_unchecked(
-            BitLayout::new(42, 8, 4, 10), // 42 timestamp, 8 worker, 4 process, 10 sequence
-            Epoch::new(1_500_000_000_000),
-        );
+        let config =
+            Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_500_000_000_000));
         let generator = Generator::new(config, 0, 0).unwrap();
 
         let max_timestamp = (1u64 << 42) - 1; // 42 bits

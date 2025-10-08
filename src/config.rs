@@ -720,10 +720,8 @@ mod tests {
 
     #[test]
     fn config_new() {
-        let config = Config::new_unchecked(
-            BitLayout::new(42, 8, 4, 10), // bits: timestamp, worker, process, sequence
-            Epoch::new(1_600_000_000_000),
-        );
+        let config =
+            Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
         assert_eq!(config.layout().timestamp(), 42);
         assert_eq!(config.layout().worker(), 8);
