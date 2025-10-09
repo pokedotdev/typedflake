@@ -562,6 +562,27 @@ pub struct Config {
 }
 
 impl Config {
+    /// Twitter Snowflake-inspired configuration (42t|5w|5p|12s)
+    /// - 139 years lifespan
+    /// - 1024 instances (32 workers × 32 processes)
+    /// - 4096 IDs per millisecond per worker
+    /// - Epoch: Nov 4, 2010 01:42:54 UTC
+    pub const TWITTER: Self = Self::new_unchecked(BitLayout::TWITTER, Epoch::TWITTER);
+
+    /// Discord's configuration (42t|5w|5p|12s)
+    /// - 139 years lifespan
+    /// - 1024 instances (32 workers × 32 processes)
+    /// - 4096 IDs per millisecond per instance
+    /// - Epoch: Jan 1, 2015 00:00:00 UTC
+    pub const DISCORD: Self = Self::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
+
+    /// Default configuration (42t|5w|5p|12s)
+    /// - 139 years lifespan
+    /// - 1024 instances (32 workers × 32 processes)
+    /// - 4096 IDs per millisecond per instance
+    /// - Epoch: Jan 1, 2025 00:00:00 UTC
+    pub const DEFAULT: Self = Self::new_unchecked(BitLayout::DEFAULT, Epoch::DEFAULT);
+
     /// Create a new Config without validation (const-compatible)
     pub const fn new_unchecked(layout: BitLayout, epoch: Epoch) -> Self {
         Config { layout, epoch }
