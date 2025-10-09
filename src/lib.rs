@@ -29,7 +29,6 @@ pub mod context;
 pub mod generator;
 pub mod global;
 pub mod state;
-pub mod traits;
 
 mod macros; // Keep macros private, they're exported via the macro itself
 
