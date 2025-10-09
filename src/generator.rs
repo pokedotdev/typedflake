@@ -1,3 +1,15 @@
+//! Core ID generation and component manipulation.
+//!
+//! The [`Generator`] performs lock-free ID generation using atomic compare-and-swap operations.
+//! Each generator is bound to specific worker and process IDs, with pre-injected shared state
+//! for optimal performance.
+//!
+//! Provides methods for:
+//! - ID generation (blocking and non-blocking variants)
+//! - Component extraction from IDs
+//! - ID composition from components
+//! - Validated and unchecked operations
+
 use crate::config::{Config, ValidationError};
 use crate::state::State;
 use derive_more::{Display, Error};

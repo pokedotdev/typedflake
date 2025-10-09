@@ -1,3 +1,13 @@
+//! Per-type ID context and generator factory.
+//!
+//! Each ID type created with the [`id!`](crate::id) macro maintains its own static
+//! [`IdContext`] that holds:
+//! - Configuration (bit layout and epoch)
+//! - Shared state pool for (worker_id, process_id) instances
+//! - Default generator (lazily initialized)
+//!
+//! The context provides factory methods to create generators with specific worker/process IDs.
+
 use crate::config::{Config, ValidationError};
 use crate::generator::Generator;
 use crate::global;

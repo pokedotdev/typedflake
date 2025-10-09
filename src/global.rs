@@ -1,3 +1,12 @@
+//! Global default configuration and instance management.
+//!
+//! Provides one-time initialization of default configuration and (worker_id, process_id)
+//! for all ID types in the application. Useful for distributed systems where each service
+//! instance has the same configuration throughout its lifecycle.
+//!
+//! Use [`set_defaults`], [`set_default_config`], or [`set_default_instance`] at application
+//! startup before generating any IDs. These can only be called once.
+
 use crate::Config;
 use derive_more::{Display, Error};
 use std::sync::OnceLock;

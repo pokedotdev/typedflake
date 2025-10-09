@@ -1,65 +1,12 @@
-//! Configuration and bit allocation for Snowflake-style ID generation.
+//! Configuration types for ID generation.
 //!
-//! This module provides the core configuration types for TypedFlake ID generation:
-//! - [`BitLayout`]: Defines how the 64-bit ID space is divided
-//! - [`Config`]: Complete configuration including bit layout and epoch
+//! Provides configuration for Snowflake-style ID generation:
+//! - [`BitLayout`] - How the 64-bit ID space is divided (timestamp, worker, process, sequence)
+//! - [`Config`] - Complete configuration including bit layout and epoch
+//! - [`Epoch`] - Custom epoch timestamps
 //!
-//! # Choosing a Bit Allocation
-//!
-//! The 64-bit ID space must be divided between four components:
-//!
-//! ## Timestamp Bits (typically 41-45 bits)
-//! - Determines how long your IDs remain unique before wrapping
-//! - 41 bits = ~69 years, 42 bits = ~139 years, 45 bits = ~1115 years
-//! - **Trade-off**: More timestamp bits = longer lifespan, fewer worker/sequence bits
-//!
-//! ## Worker Bits (typically 4-10 bits)
-//! - Number of independent worker processes across all machines
-//! - 5 bits = 32 workers, 8 bits = 256 workers, 10 bits = 1024 workers
-//! - **Trade-off**: More worker bits = more horizontal scaling, fewer sequence bits
-//!
-//! ## Process Bits (typically 0-5 bits)
-//! - Number of processes per worker (can be 0 if not needed)
-//! - 5 bits = 32 processes per worker, 0 bits = worker-only mode
-//! - **Trade-off**: More process bits = more local parallelism, fewer sequence bits
-//!
-//! ## Sequence Bits (typically 10-15 bits)
-//! - Number of IDs that can be generated per millisecond per instance
-//! - 10 bits = 1024 IDs/ms, 12 bits = 4096 IDs/ms, 15 bits = 32768 IDs/ms
-//! - **Trade-off**: More sequence bits = higher throughput, fewer worker/timestamp bits
-//!
-//! # Industry-Standard Presets
-//!
-//! Use battle-tested bit allocations from real-world implementations:
-//!
-//! ```
-//! use typedflake::{BitLayout, Config, Epoch};
-//!
-//! // Twitter Snowflake-inspired (42t|5w|5p|12s)
-//! const TWITTER_CONFIG: Config = Config::new_unchecked(BitLayout::TWITTER, Epoch::TWITTER);
-//!
-//! // Discord's allocation (42t|5w|5p|12s)
-//! const DISCORD_CONFIG: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
-//! ```
-//!
-//! # Custom Allocation
-//!
-//! Create a custom allocation based on your needs:
-//!
-//! ```
-//! use typedflake::{BitLayout, Config};
-//!
-//! // Custom: 45 timestamp bits (~1115 years), 8 worker bits (256 workers),
-//! //         4 process bits (16 processes), 7 sequence bits (128 IDs/ms)
-//! const CUSTOM: BitLayout = BitLayout::new(45, 8, 4, 7);
-//!
-//! // Check capacity before committing
-//! assert!((CUSTOM.timestamp_duration_years() - 1114.9).abs() < 1.0);
-//! assert_eq!(CUSTOM.worker_max(), 255);
-//! assert_eq!(CUSTOM.process_max(), 15);
-//! assert_eq!(CUSTOM.ids_per_millisecond(), 128);
-//! assert_eq!(CUSTOM.total_instances(), 4096);
-//! ```
+//! Use industry presets ([`Config::TWITTER`], [`Config::DISCORD`]) or create custom configurations
+//! based on your scaling and throughput needs.
 
 use derive_more::{Display, Error, From};
 use std::fmt;
@@ -551,10 +498,26 @@ impl ValidationError {
     }
 }
 
-/// Configuration - contains bit allocation (via BitLayout) and epoch
+/// Complete ID generation configuration (bit layout + epoch)
 ///
-/// All bit manipulation values (shifts, masks) are computed from the embedded BitLayout
-/// using const fn methods, enabling compile-time evaluation while eliminating duplication.
+/// Combines a [`BitLayout`] (how to divide the 64-bit ID space) with an [`Epoch`]
+/// (time reference point).
+///
+/// # Examples
+///
+/// ```
+/// use typedflake::{BitLayout, Config, Epoch};
+///
+/// // Use presets
+/// const TWITTER: Config = Config::TWITTER;
+/// const DISCORD: Config = Config::DISCORD;
+///
+/// // Custom configuration
+/// const CUSTOM: Config = Config::new_unchecked(
+///     BitLayout::new(42, 5, 5, 12),
+///     Epoch::from_date(2025, 1, 1)
+/// );
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Config {
     layout: BitLayout,

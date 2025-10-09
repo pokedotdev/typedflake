@@ -1,3 +1,12 @@
+//! Atomic state management and lazy state pooling.
+//!
+//! Each (worker_id, process_id) instance maintains its own [`State`] with packed atomic storage
+//! for timestamp and sequence. States are cache-line aligned to prevent false sharing.
+//!
+//! The [`StatePool`] provides lazy, on-demand state allocation using DashMap for lock-free
+//! concurrent access. Multiple generators for the same (worker_id, process_id) pair share
+//! the same underlying state.
+
 use crate::config::Config;
 use dashmap::DashMap;
 use std::sync::Arc;

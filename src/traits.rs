@@ -1,4 +1,8 @@
-/// Automatically implement standard traits and methods for ID types
+/// Implement standard traits for ID types.
+///
+/// Generates trait implementations for types created with [`id!`](crate::id)
+///
+/// This macro is called automatically by `id!` and should not be used directly.
 #[macro_export]
 macro_rules! impl_id_traits {
     ($name:ident) => {

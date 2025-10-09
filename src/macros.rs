@@ -1,3 +1,26 @@
+/// Generate a type-safe ID newtype.
+///
+/// Creates a distinct newtype with its own static context, inherent methods, and trait implementations.
+/// Each ID type is completely independent with no shared state between types.
+///
+/// # Examples
+///
+/// ```
+/// // With default configuration
+/// typedflake::id!(UserId);
+///
+/// let id = UserId::generate();
+/// ```
+///
+/// ```
+/// // With custom configuration
+/// use typedflake::{Config, BitLayout, Epoch};
+///
+/// const CUSTOM: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
+/// typedflake::id!(SessionId, CUSTOM);
+///
+/// let id = SessionId::generate();
+/// ```
 #[macro_export]
 macro_rules! id {
     ($name:ident) => {
