@@ -2,9 +2,16 @@
 name = "typedflake"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
 description = "A Snowflake-style ID generator library with newtype-driven design"
 license = "MIT"
 authors = ["pokedotdev <hi@poke.dev>"]
+repository = "https://github.com/pokedotdev/typedflake"
+homepage = "https://github.com/pokedotdev/typedflake"
+documentation = "https://docs.rs/typedflake"
+readme = "README.md"
+keywords = ["snowflake", "id-generator", "distributed", "unique-id", "newtype"]
+categories = ["data-structures", "algorithms", "concurrency"]
 
 [dependencies]
 dashmap = "6.1"
