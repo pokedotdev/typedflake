@@ -1,7 +1,4 @@
-use typedflake::{BitLayout, Config, Epoch};
-
-// Discord's configuration
-const DISCORD_CONFIG: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
+use typedflake::Config;
 
 // Define ID types at module scope
 typedflake::id!(UserId);
@@ -17,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()?;
 
     // Set default configuration once at startup
-    typedflake::global::set_defaults(DISCORD_CONFIG, worker_id, process_id)?;
+    typedflake::global::set_defaults(Config::DISCORD, worker_id, process_id)?;
 
     // All subsequent ID generation uses default config
     let user_id = UserId::generate();
