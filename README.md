@@ -302,7 +302,7 @@ let json = serde_json::to_string_pretty(&user)?;
 }
 ```
 
-> [!INFO]
+> [!TIP]
 > **Why strings?** JSON numbers are typically parsed as [IEEE 754 double-precision floats](https://en.wikipedia.org/wiki/Double-precision_floating-point_format), which safely represent integers up to 53 bits. Snowflake IDs are 64-bit, so values above `9_007_199_254_740_991` lose precision when parsed as numbers. String serialization ensures safe transmission across languages (JavaScript, Python, Java, Go, etc.) and web APIs without data loss.
 
 ---
