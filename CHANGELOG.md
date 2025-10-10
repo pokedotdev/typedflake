@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.2](https://github.com/pokedotdev/typedflake/compare/v0.1.1...v0.1.2) - 2025-10-10
+
+### Fixed
+
+- add missing serde feature definition to Cargo.toml
+
+### Other
+
+- *(readme)* correct blockquote alert syntax
+- Merge branch 'main' of github.com:pokedotdev/typedflake
+
 ## [0.1.1](https://github.com/pokedotdev/typedflake/compare/v0.1.0...v0.1.1) - 2025-10-10
 
 ### Added
