@@ -36,9 +36,7 @@ fn main() {
 
 ---
 
-## API Guide
-
-### Basic Generation
+## Basic Generation
 
 Generate IDs using the default instance (worker=0, process=0):
 
@@ -62,7 +60,7 @@ fn process_user(id: UserId) { }
 process_user(order_id); // ❌ Compile error!
 ```
 
-### Instance-Based Generation
+## Instance-Based Generation
 
 Create generators bound to specific worker/process IDs for distributed systems:
 
@@ -89,9 +87,9 @@ let id = us_east_dc2.generate();
 > [!TIP]
 > For containerized deployments (Kubernetes, Docker), use [**Global Defaults**](#global-defaults) to configure worker/process IDs from environment variables. This eliminates the need to pass IDs throughout your application.
 
-### Configuration
+## Configuration
 
-#### Presets
+### Presets
 
 Use battle-tested configurations:
 
@@ -116,7 +114,7 @@ Epoch::DEFAULT;    // Jan 1, 2025 00:00:00 UTC
 > [!TIP]
 > **New projects**: Use a custom epoch near your launch date to maximize capacity. See [Choosing an Epoch](#choosing-an-epoch) below.
 
-#### Custom Configuration
+### Custom Configuration
 
 ```rust
 use typedflake::{BitLayout, Config, Epoch};
@@ -130,7 +128,7 @@ const CUSTOM_CONFIG: Config = Config::new_unchecked(
 typedflake::id!(CustomId, CUSTOM_CONFIG);
 ```
 
-#### Choosing an Epoch
+### Choosing an Epoch
 
 **Recommended for new projects:** Set your epoch near to your project's launch date.
 
@@ -155,7 +153,7 @@ const CONFIG: Config = Config::DISCORD;  // Epoch from 2015
 > [!CAUTION]
 > Only change your epoch if you're absolutely certain no IDs have been generated in production yet. Otherwise, keep your current epoch—compatibility with existing IDs is more important than reclaiming unused years.
 
-### Global Defaults
+## Global Defaults
 
 In distributed systems (microservices, Kubernetes, multi-region), each service instance typically has the same worker/process ID throughout its lifecycle. Global defaults eliminate the need to pass these IDs around—set them once at startup, then use the simple `generate()` API everywhere.
 
@@ -195,7 +193,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Component Access
+## Component Access
 
 ```rust
 typedflake::id!(UserId);
@@ -215,9 +213,9 @@ let process = id.process_id();
 let sequence = id.sequence();
 ```
 
-### Composition & Conversions
+## Composition & Conversions
 
-#### Compose IDs from Components
+### Compose IDs from Components
 
 ```rust
 typedflake::id!(UserId);
@@ -233,7 +231,7 @@ let id = UserId::compose_unchecked(1234567890, 42);
 let id = UserId::compose_custom_unchecked(1234567890, 15, 7, 42);
 ```
 
-#### u64 Conversions
+### u64 Conversions
 
 ```rust
 let id = UserId::generate();
@@ -250,7 +248,7 @@ let id: UserId = raw.try_into()?;
 let id = UserId::from_u64_unchecked(raw);
 ```
 
-#### String Conversions
+### String Conversions
 
 ```rust
 let id = UserId::generate();
