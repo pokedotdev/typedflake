@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.3](https://github.com/pokedotdev/typedflake/compare/v0.1.2...v0.1.3) - 2025-10-10
+
+### Fixed
+
+- *(macro)* resolve hygiene issues with paste and serde cfg checks
+
+### Other
+
+- add GitHub Actions workflow for tests and linting
+
 ## [0.1.2](https://github.com/pokedotdev/typedflake/compare/v0.1.1...v0.1.2) - 2025-10-10
 
 ### Fixed
