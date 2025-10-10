@@ -13,6 +13,7 @@ Generate unique, time-ordered 64-bit IDs across distributed systems without coor
 - **🎛️ Customizable**: Configure bit allocation and epoch per-type or globally
 - **💾 Shared state pool**: Generators share lazy state per (worker, process) pair
 - **🏭 Battle-tested**: Industry-standard presets from Twitter and Discord
+- **📦 Serde support**: Optional JSON serialization as strings ([IEEE 754](https://en.wikipedia.org/wiki/Double-precision_floating-point_format) safe)
 
 ## Quick Start
 
@@ -261,6 +262,48 @@ println!("ID: {s}");
 let parsed: UserId = s.parse()?;
 assert_eq!(id, parsed);
 ```
+
+### JSON Serialization (Serde)
+
+Enable the `serde` feature for JSON serialization:
+
+```toml
+[dependencies]
+typedflake = { version = "0.1", features = ["serde"] }
+```
+
+IDs serialize as **strings** (not numbers) for safe cross-language compatibility:
+
+```rust
+use serde::{Deserialize, Serialize};
+
+typedflake::id!(UserId);
+
+#[derive(Serialize, Deserialize)]
+struct User {
+    id: UserId,
+    name: String,
+}
+
+let user = User {
+    id: UserId::generate(),
+    name: "Alice".to_string(),
+};
+
+let json = serde_json::to_string_pretty(&user)?;
+```
+
+**JSON output:**
+
+```json
+{
+  "id": "1234567890123456789",
+  "name": "Alice"
+}
+```
+
+> [!INFO]
+> **Why strings?** JSON numbers are typically parsed as [IEEE 754 double-precision floats](https://en.wikipedia.org/wiki/Double-precision_floating-point_format), which safely represent integers up to 53 bits. Snowflake IDs are 64-bit, so values above `9_007_199_254_740_991` lose precision when parsed as numbers. String serialization ensures safe transmission across languages (JavaScript, Python, Java, Go, etc.) and web APIs without data loss.
 
 ---
 

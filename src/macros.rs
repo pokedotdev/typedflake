@@ -194,6 +194,29 @@ macro_rules! id {
                     Self::try_from_u64(id)
                 }
             }
+
+            // Serde support: serialize as string for JavaScript compatibility
+            #[cfg(feature = "serde")]
+            impl serde::Serialize for $name {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: serde::Serializer,
+                {
+                    serializer.serialize_str(&self.to_string())
+                }
+            }
+
+            #[cfg(feature = "serde")]
+            impl<'de> serde::Deserialize<'de> for $name {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    String::deserialize(deserializer)?
+                        .parse()
+                        .map_err(serde::de::Error::custom)
+                }
+            }
         }
     };
 }
