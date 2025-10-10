@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.1](https://github.com/pokedotdev/typedflake/compare/v0.1.0...v0.1.1) - 2025-10-10
+
+### Added
+
+- add optional serde support for IEEE 754-safe JSON serialization
+
+### Other
+
+- remove API Guide wrapper and flatten heading hierarchy
+- *(ci)* use YAML anchors to deduplicate workflow steps
+- release v0.1.0
+
 ## [0.1.0](https://github.com/pokedotdev/typedflake/releases/tag/v0.1.0) - 2025-10-09
 
 ### Added
