@@ -17,9 +17,19 @@ categories = ["data-structures", "algorithms", "concurrency"]
 dashmap = "6.1"
 derive_more = { version = "2.0.1", features = ["error", "from", "display"] }
 paste = "1.0.15"
+serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.7", features = ["html_reports"] }
+serde_json = "1.0"
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[[example]]
+name = "serde"
+required-features = ["serde"]
 
 [[bench]]
 name = "performance"

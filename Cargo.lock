@@ -527,6 +527,8 @@ dependencies = [
  "dashmap",
  "derive_more",
  "paste",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
