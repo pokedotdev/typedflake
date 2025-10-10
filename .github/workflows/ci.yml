@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy (no features)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Clippy (all features)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test (${{ matrix.rust }}, ${{ matrix.features }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, "1.85"]
+        features: ["default", "all"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.rust }}-${{ matrix.features }}
+
+      - name: Check (no features)
+        if: matrix.features == 'default'
+        run: cargo check --all-targets
+
+      - name: Check (all features)
+        if: matrix.features == 'all'
+        run: cargo check --all-targets --all-features
+
+      - name: Run tests (no features)
+        if: matrix.features == 'default'
+        run: cargo test --all-targets
+
+      - name: Run tests (all features)
+        if: matrix.features == 'all'
+        run: cargo test --all-targets --all-features
+
+      - name: Run doctests (no features)
+        if: matrix.features == 'default'
+        run: cargo test --doc
+
+      - name: Run doctests (all features)
+        if: matrix.features == 'all'
+        run: cargo test --doc --all-features
+
+      - name: Build examples (no features)
+        if: matrix.features == 'default'
+        run: cargo build --examples
+
+      - name: Build examples (all features)
+        if: matrix.features == 'all'
+        run: cargo build --examples --all-features
