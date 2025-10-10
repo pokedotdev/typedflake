@@ -28,7 +28,7 @@ macro_rules! id {
     };
 
     ($name:ident, $config:expr) => {
-        paste::paste! {
+        $crate::__paste! {
             #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
             pub struct $name(u64);
 
@@ -195,30 +195,47 @@ macro_rules! id {
                 }
             }
 
-            // Serde support: serialize as string for JavaScript compatibility
-            #[cfg(feature = "serde")]
-            impl serde::Serialize for $name {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where
-                    S: serde::Serializer,
-                {
-                    serializer.serialize_str(&self.to_string())
-                }
-            }
+            // Conditionally include serde impls (uses helper macro to avoid cfg in expansion)
+            $crate::__impl_serde_for_id!($name);
+        }
+    };
+}
 
-            #[cfg(feature = "serde")]
-            impl<'de> serde::Deserialize<'de> for $name {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where
-                    D: serde::Deserializer<'de>,
-                {
-                    String::deserialize(deserializer)?
-                        .parse()
-                        .map_err(serde::de::Error::custom)
-                }
+// Helper macro for serde support (only available when serde feature is enabled)
+#[cfg(feature = "serde")]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __impl_serde_for_id {
+    ($name:ident) => {
+        // Serialize as string for JavaScript compatibility (IEEE 754 safety)
+        impl $crate::__serde::Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: $crate::__serde::Serializer,
+            {
+                serializer.serialize_str(&self.to_string())
+            }
+        }
+
+        impl<'de> $crate::__serde::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: $crate::__serde::Deserializer<'de>,
+            {
+                String::deserialize(deserializer)?
+                    .parse()
+                    .map_err($crate::__serde::de::Error::custom)
             }
         }
     };
+}
+
+// No-op version when serde is not enabled
+#[cfg(not(feature = "serde"))]
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __impl_serde_for_id {
+    ($name:ident) => {};
 }
 
 #[cfg(test)]

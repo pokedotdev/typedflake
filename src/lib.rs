@@ -32,6 +32,15 @@ pub mod state;
 
 mod macros; // Keep macros private, they're exported via the macro itself
 
+// Re-export paste macro for use in the id! macro expansion (macro hygiene)
+#[doc(hidden)]
+pub use paste::paste as __paste;
+
+// Re-export serde when feature is enabled (macro hygiene for conditional trait impls)
+#[cfg(feature = "serde")]
+#[doc(hidden)]
+pub use serde as __serde;
+
 // Re-export main types and the macro
 pub use config::{
     BitLayout, BitLayoutError, Config, ConfigError, Epoch, EpochError, ValidationError,
