@@ -1,0 +1,35 @@
+[package]
+name = "typedflake"
+description = "A Snowflake-style ID generator library with newtype-driven design"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/typedflake"
+readme = "../README.md"
+keywords = ["snowflake", "id-generator", "distributed", "unique-id", "newtype"]
+categories = ["data-structures", "algorithms", "concurrency"]
+
+[dependencies]
+typedflake-core.workspace = true
+typedflake-macros.workspace = true
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion.workspace = true
+serde_json.workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "typedflake-core/serde", "typedflake-macros/serde"]
+
+[[example]]
+name = "serde"
+required-features = ["serde"]
+
+[[bench]]
+name = "performance"
+harness = false

@@ -31,10 +31,10 @@ jobs:
         run: cargo fmt --all --check
 
       - name: Clippy (no features)
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Clippy (all features)
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   test:
     name: Test (${{ matrix.rust }}, ${{ matrix.features }})
@@ -60,32 +60,32 @@ jobs:
 
       - name: Check (no features)
         if: matrix.features == 'default'
-        run: cargo check --all-targets
+        run: cargo check --workspace --all-targets
 
       - name: Check (all features)
         if: matrix.features == 'all'
-        run: cargo check --all-targets --all-features
+        run: cargo check --workspace --all-targets --all-features
 
       - name: Run tests (no features)
         if: matrix.features == 'default'
-        run: cargo test --all-targets
+        run: cargo test --workspace --all-targets
 
       - name: Run tests (all features)
         if: matrix.features == 'all'
-        run: cargo test --all-targets --all-features
+        run: cargo test --workspace --all-targets --all-features
 
       - name: Run doctests (no features)
         if: matrix.features == 'default'
-        run: cargo test --doc
+        run: cargo test --workspace --doc
 
       - name: Run doctests (all features)
         if: matrix.features == 'all'
-        run: cargo test --doc --all-features
+        run: cargo test --workspace --doc --all-features
 
       - name: Build examples (no features)
         if: matrix.features == 'default'
-        run: cargo build --examples
+        run: cargo build --workspace --examples
 
       - name: Build examples (all features)
         if: matrix.features == 'all'
-        run: cargo build --examples --all-features
+        run: cargo build --workspace --examples --all-features

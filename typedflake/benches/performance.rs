@@ -1,13 +1,15 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
-use typedflake::{BitLayout, Config, Epoch};
+use typedflake::{BitLayout, Config, Epoch, TypedFlake};
 
-// Create ID types for benchmarking
-typedflake::id!(BenchId);
+#[derive(TypedFlake)]
+pub struct BenchId(u64);
 
 const CUSTOM_CONFIG: Config = Config::new_unchecked(BitLayout::new(42, 5, 5, 12), Epoch::DEFAULT);
 
-typedflake::id!(CustomBenchId, CUSTOM_CONFIG);
+#[derive(TypedFlake)]
+#[typedflake(config = CUSTOM_CONFIG)]
+pub struct CustomBenchId(u64);
 
 fn benchmark_id_generation(c: &mut Criterion) {
     c.bench_function("id_generation", |b| {

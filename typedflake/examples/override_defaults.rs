@@ -1,8 +1,10 @@
-use typedflake::Config;
+use typedflake::{Config, TypedFlake};
 
-// Define ID types at module scope
-typedflake::id!(UserId);
-typedflake::id!(ServerId);
+#[derive(TypedFlake)]
+pub struct UserId(u64);
+
+#[derive(TypedFlake)]
+pub struct ServerId(u64);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read from environment (K8s, Docker, etc.)

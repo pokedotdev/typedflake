@@ -1,9 +1,13 @@
 #![cfg(feature = "serde")]
 
 use serde::{Deserialize, Serialize};
+use typedflake::TypedFlake;
 
-typedflake::id!(UserId);
-typedflake::id!(OrderId);
+#[derive(TypedFlake)]
+pub struct UserId(u64);
+
+#[derive(TypedFlake)]
+pub struct OrderId(u64);
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct Order {
@@ -17,7 +21,6 @@ fn serialize_as_string() {
     let id = UserId::generate();
     let json = serde_json::to_string(&id).unwrap();
 
-    // Should be serialized as a quoted string, not a number
     assert!(json.starts_with('"'));
     assert!(json.ends_with('"'));
     assert_eq!(json, format!("\"{id}\""));
@@ -51,19 +54,16 @@ fn serialize_in_struct() {
 
     let json = serde_json::to_string(&order).unwrap();
 
-    // IDs should be strings in JSON
     assert!(json.contains("\"user_id\":\""));
     assert!(json.contains("\"order_id\":\""));
     assert!(json.contains("\"amount\":1000"));
 
-    // Deserialize back
     let deserialized: Order = serde_json::from_str(&json).unwrap();
     assert_eq!(order, deserialized);
 }
 
 #[test]
 fn deserialize_validates() {
-    // Invalid format should fail
     let invalid_json = "\"not_a_number\"";
     let result: Result<UserId, _> = serde_json::from_str(invalid_json);
     assert!(result.is_err());

@@ -1,3 +1,22 @@
+use typedflake::TypedFlake;
+
+// ==================== ID Types ====================
+
+#[derive(TypedFlake)]
+pub struct StressTestId(u64);
+
+#[derive(TypedFlake)]
+pub struct IsolationTestId(u64);
+
+#[derive(TypedFlake)]
+pub struct MinInstanceId(u64);
+
+#[derive(TypedFlake)]
+pub struct MaxInstanceId(u64);
+
+#[derive(TypedFlake)]
+pub struct ExtremeStressId(u64);
+
 // ==================== Concurrent Test Helpers ====================
 
 /// Run concurrent ID generation test with multiple threads
@@ -79,12 +98,9 @@ fn assert_components_match<T>(
 
 #[test]
 fn lock_free_stress_8_threads() {
-    typedflake::id!(StressTestId);
-
     const NUM_THREADS: usize = 8;
     const IDS_PER_THREAD: usize = 1000;
 
-    // Run concurrent ID generation with different worker IDs per thread
     let thread_results = run_concurrent_generation(NUM_THREADS, IDS_PER_THREAD, |thread_id| {
         let instance = StressTestId::instance(thread_id as u64, 0).unwrap();
         let mut ids = Vec::with_capacity(IDS_PER_THREAD);
@@ -93,23 +109,18 @@ fn lock_free_stress_8_threads() {
             ids.push(instance.generate());
         }
 
-        // Verify thread-local uniqueness
         assert_all_unique(&ids, &format!("Thread {thread_id} local uniqueness"));
         ids
     });
 
-    // Verify global uniqueness across all threads
     assert_global_uniqueness(thread_results, "8 threads × 1000 IDs");
 }
 
 #[test]
 fn state_isolation_per_instance() {
-    typedflake::id!(IsolationTestId);
-
     const NUM_INSTANCES: usize = 4;
     const IDS_PER_INSTANCE: usize = 100;
 
-    // Test that different (worker_id, process_id) pairs have independent sequences
     let results = run_concurrent_generation(NUM_INSTANCES, IDS_PER_INSTANCE, |i| {
         let worker_id = i as u64;
         let process_id = (i * 2) as u64;
@@ -120,22 +131,18 @@ fn state_isolation_per_instance() {
             ids.push(instance.generate());
         }
 
-        // Verify IDs have correct worker/process components
         assert_components_match(&ids, worker_id, process_id, |id| {
             let c = id.components();
             (c.worker_id, c.process_id)
         });
 
-        // Extract sequences for verification
         let sequences: Vec<u64> = ids.iter().map(|id| id.sequence()).collect();
 
-        // Each instance should start from sequence 0
         assert_eq!(
             sequences[0], 0,
             "Instance ({worker_id}, {process_id}) should start at 0"
         );
 
-        // Sequences should show reasonable progression
         let max_sequence = *sequences.iter().max().unwrap();
         assert!(
             max_sequence >= IDS_PER_INSTANCE as u64 / 2,
@@ -145,15 +152,11 @@ fn state_isolation_per_instance() {
         ids
     });
 
-    // Verify global uniqueness
     assert_global_uniqueness(results, "Per-instance state isolation");
 }
 
 #[test]
 fn concurrent_min_boundary() {
-    // Test same instance (0, 0) from multiple threads - minimum boundary
-    typedflake::id!(MinInstanceId);
-
     const NUM_THREADS: usize = 4;
     const IDS_PER_THREAD: usize = 250;
     const WORKER_ID: u64 = 0;
@@ -174,13 +177,10 @@ fn concurrent_min_boundary() {
 
 #[test]
 fn concurrent_max_boundary() {
-    // Test same instance (31, 31) from multiple threads - maximum boundary
-    typedflake::id!(MaxInstanceId);
-
     const NUM_THREADS: usize = 4;
     const IDS_PER_THREAD: usize = 250;
-    const WORKER_ID: u64 = 31; // Max for 5 bits
-    const PROCESS_ID: u64 = 31; // Max for 5 bits
+    const WORKER_ID: u64 = 31;
+    const PROCESS_ID: u64 = 31;
 
     let thread_results = run_concurrent_generation(NUM_THREADS, IDS_PER_THREAD, |_| {
         let instance = MaxInstanceId::instance(WORKER_ID, PROCESS_ID).unwrap();
@@ -197,14 +197,11 @@ fn concurrent_max_boundary() {
 
 #[test]
 fn extreme_stress_16_threads() {
-    typedflake::id!(ExtremeStressId);
-
     const NUM_THREADS: usize = 16;
     const IDS_PER_THREAD: usize = 1000;
     const WORKER_ID: u64 = 5;
     const PROCESS_ID: u64 = 3;
 
-    // Run extreme stress test - generate() now blocks automatically on sequence exhaustion
     let thread_results =
         run_concurrent_generation(NUM_THREADS, IDS_PER_THREAD, move |thread_idx| {
             let instance = ExtremeStressId::instance(WORKER_ID, PROCESS_ID).unwrap();
@@ -214,12 +211,10 @@ fn extreme_stress_16_threads() {
                 ids.push(instance.generate());
             }
 
-            // Verify thread-local uniqueness
             assert_all_unique(&ids, &format!("Thread {thread_idx} local uniqueness"));
             ids
         });
 
-    // Verify global uniqueness and components
     let all_ids: Vec<_> = thread_results.into_iter().flatten().collect();
     assert_all_unique(&all_ids, "Extreme stress global uniqueness");
     assert_components_match(&all_ids, WORKER_ID, PROCESS_ID, |id| {

@@ -1,6 +1,6 @@
 //! Per-type ID context and generator factory.
 //!
-//! Each ID type created with the [`id!`](crate::id) macro maintains its own static
+//! Each ID type created with `#[derive(TypedFlake)]` maintains its own static
 //! [`IdContext`] that holds:
 //! - Configuration (bit layout and epoch)
 //! - Shared state pool for (worker_id, process_id) instances

@@ -3,8 +3,10 @@
 //! Run with: cargo run --example serde --features serde
 
 use serde::{Deserialize, Serialize};
+use typedflake::TypedFlake;
 
-typedflake::id!(UserId);
+#[derive(TypedFlake)]
+pub struct UserId(u64);
 
 #[derive(Serialize, Deserialize, Debug)]
 struct User {
@@ -31,7 +33,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify roundtrip
     assert_eq!(user.id, deserialized.id);
-    println!("\n✅ Roundtrip successful!");
 
     Ok(())
 }

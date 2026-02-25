@@ -1,12 +1,16 @@
-use typedflake::{BitLayout, Config, Epoch};
+use typedflake::{BitLayout, Config, Epoch, TypedFlake};
 
-// Define distinct ID types - each type is independent
-typedflake::id!(UserId);
-typedflake::id!(OrderId);
+#[derive(TypedFlake)]
+pub struct UserId(u64);
 
-// Custom configuration example
+#[derive(TypedFlake)]
+pub struct OrderId(u64);
+
 const CUSTOM: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::from_date(2025, 1, 1));
-typedflake::id!(SessionId, CUSTOM);
+
+#[derive(TypedFlake)]
+#[typedflake(config = CUSTOM)]
+pub struct SessionId(u64);
 
 fn main() {
     // Basic generation (default instance: worker=0, process=0)

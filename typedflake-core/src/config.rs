@@ -86,7 +86,7 @@ impl ConfigError {
 /// # Examples
 ///
 /// ```
-/// use typedflake::Epoch;
+/// use typedflake_core::Epoch;
 ///
 /// // Use presets
 /// let epoch = Epoch::DISCORD;
@@ -239,7 +239,7 @@ impl fmt::Display for Epoch {
 /// # Examples
 ///
 /// ```
-/// use typedflake::BitLayout;
+/// use typedflake_core::BitLayout;
 ///
 /// // Use industry-standard presets
 /// let twitter = BitLayout::TWITTER;  // 42t|5w|5p|12s
@@ -506,7 +506,7 @@ impl ValidationError {
 /// # Examples
 ///
 /// ```
-/// use typedflake::{BitLayout, Config, Epoch};
+/// use typedflake_core::{BitLayout, Config, Epoch};
 ///
 /// // Use presets
 /// const TWITTER: Config = Config::TWITTER;

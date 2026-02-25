@@ -1,5 +1,10 @@
-typedflake::id!(UserId);
-typedflake::id!(OrderId);
+use typedflake::TypedFlake;
+
+#[derive(TypedFlake)]
+pub struct UserId(u64);
+
+#[derive(TypedFlake)]
+pub struct OrderId(u64);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read from environment (Kubernetes, Docker, etc.)

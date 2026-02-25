@@ -1,0 +1,18 @@
+[package]
+name = "typedflake-core"
+description = "Core runtime for TypedFlake ID generation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+dashmap.workspace = true
+derive_more.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
