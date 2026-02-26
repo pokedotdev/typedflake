@@ -1,10 +1,8 @@
 use typedflake::{BitLayout, Config, Epoch, TypedFlake};
 
-const ZERO_PROCESS_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 10, 0, 12), Epoch::DEFAULT);
+const ZERO_PROCESS_CONFIG: Config = Config::new(BitLayout::new(42, 10, 0, 12), Epoch::DEFAULT);
 
-const ZERO_WORKER_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 0, 10, 12), Epoch::DEFAULT);
+const ZERO_WORKER_CONFIG: Config = Config::new(BitLayout::new(42, 0, 10, 12), Epoch::DEFAULT);
 
 #[derive(TypedFlake)]
 #[typedflake(config = ZERO_PROCESS_CONFIG)]

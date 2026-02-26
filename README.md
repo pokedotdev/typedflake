@@ -12,15 +12,18 @@ Generate unique, time-ordered 64-bit IDs across distributed systems without coor
 - **🛡️ Type-safe**: Each ID type is distinct (no mixing `UserId` with `OrderId`)
 - **🎛️ Customizable**: Configure bit allocation and epoch per-type or globally
 - **💾 Shared state pool**: Generators share lazy state per (worker, process) pair
-- **🏭 Battle-tested**: Industry-standard presets from Twitter and Discord
 - **📦 Serde support**: Optional JSON serialization as strings ([IEEE 754](https://en.wikipedia.org/wiki/Double-precision_floating-point_format) safe)
 
 ## Quick Start
 
 ```rust
-// Define ID types
-typedflake::id!(UserId);
-typedflake::id!(OrderId);
+use typedflake::TypedFlake;
+
+#[derive(TypedFlake)]
+pub struct UserId(u64);
+
+#[derive(TypedFlake)]
+pub struct OrderId(u64);
 
 fn main() {
     // Generate IDs (thread-safe)
@@ -42,7 +45,10 @@ fn main() {
 Generate IDs using the default instance (worker=0, process=0):
 
 ```rust
-typedflake::id!(UserId);
+use typedflake::TypedFlake;
+
+#[derive(TypedFlake)]
+pub struct UserId(u64);
 
 let id = UserId::generate();
 ```
@@ -50,8 +56,13 @@ let id = UserId::generate();
 **Multiple ID types are completely independent:**
 
 ```rust
-typedflake::id!(UserId);
-typedflake::id!(OrderId);
+use typedflake::TypedFlake;
+
+#[derive(TypedFlake)]
+pub struct UserId(u64);
+
+#[derive(TypedFlake)]
+pub struct OrderId(u64);
 
 let user_id = UserId::generate();
 let order_id = OrderId::generate();
@@ -66,7 +77,10 @@ process_user(order_id); // ❌ Compile error!
 Create generators bound to specific worker/process IDs for distributed systems:
 
 ```rust
-typedflake::id!(UserId);
+use typedflake::TypedFlake;
+
+#[derive(TypedFlake)]
+pub struct UserId(u64);
 
 // Server-based: worker ID represents physical/virtual server
 let server_15 = UserId::worker(15)?;
@@ -90,43 +104,49 @@ let id = us_east_dc2.generate();
 
 ## Configuration
 
-### Presets
+### Inline Attributes
 
-Use battle-tested configurations:
+Configure epoch and/or bit layout directly on the type:
 
 ```rust
-use typedflake::{BitLayout, Config, Epoch};
+use typedflake::TypedFlake;
 
-// Config presets (BitLayout + Epoch)
-typedflake::id!(TwitterId, Config::TWITTER);   // 42t|10w|0p|12s, epoch: Nov 2010
-typedflake::id!(DiscordId, Config::DISCORD);   // 42t|5w|5p|12s, epoch: Jan 2015
+// Custom epoch only (uses default 42|5|5|12 layout)
+#[derive(TypedFlake)]
+#[typedflake(epoch = "2025-09-13")]
+pub struct UserId(u64);
 
-// BitLayout presets (use with custom epoch)
-BitLayout::TWITTER;   // 42t|10w|0p|12s - 1024 workers, 4096 IDs/ms per worker
-BitLayout::DISCORD;   // 42t|5w|5p|12s - 1024 instances, 4096 IDs/ms per instance
-BitLayout::DEFAULT;   // Same as DISCORD
+// Custom layout only (uses default epoch)
+#[derive(TypedFlake)]
+#[typedflake(layout = (42, 8, 4, 10))]
+pub struct OrderId(u64);
 
-// Epoch presets
-Epoch::TWITTER;    // Nov 4, 2010 01:42:54 UTC
-Epoch::DISCORD;    // Jan 1, 2015 00:00:00 UTC
-Epoch::DEFAULT;    // Jan 1, 2025 00:00:00 UTC
+// Both layout and epoch
+#[derive(TypedFlake)]
+#[typedflake(layout = (42, 8, 4, 10), epoch = "2025-09-13")]
+pub struct SessionId(u64);
+
+// Epoch from milliseconds
+#[derive(TypedFlake)]
+#[typedflake(epoch = 1600000000000)]
+pub struct LegacyId(u64);
 ```
 
-> [!TIP]
-> **New projects**: Use a custom epoch near your launch date to maximize capacity. See [Choosing an Epoch](#choosing-an-epoch) below.
+### Custom Configuration via Const
 
-### Custom Configuration
+For shared configs used across multiple types:
 
 ```rust
-use typedflake::{BitLayout, Config, Epoch};
+use typedflake::{TypedFlake, BitLayout, Config, Epoch};
 
-// Create custom bit allocation
-const CUSTOM_CONFIG: Config = Config::new_unchecked(
+const CUSTOM_CONFIG: Config = Config::new(
     BitLayout::new(42, 5, 5, 12),     // timestamp, worker, process, sequence
     Epoch::from_date(2025, 9, 13)     // Custom epoch date
 );
 
-typedflake::id!(CustomId, CUSTOM_CONFIG);
+#[derive(TypedFlake)]
+#[typedflake(config = CUSTOM_CONFIG)]
+pub struct CustomId(u64);
 ```
 
 ### Choosing an Epoch
@@ -134,15 +154,12 @@ typedflake::id!(CustomId, CUSTOM_CONFIG);
 **Recommended for new projects:** Set your epoch near to your project's launch date.
 
 ```rust
-// Recommended: Set epoch near to your actual launch date
-const CONFIG: Config = Config::new_unchecked(
-    BitLayout::DEFAULT,
-    Epoch::from_date(2025, 9, 13) // Your project launch
-);
+use typedflake::TypedFlake;
 
-// Suboptimal: Using old preset epochs
-const CONFIG: Config = Config::DISCORD;  // Epoch from 2015
-// This approach consumes years of timestamp capacity before your project even existed
+// Recommended: Set epoch near to your actual launch date
+#[derive(TypedFlake)]
+#[typedflake(epoch = "2025-09-13")]
+pub struct MyId(u64);
 ```
 
 **Why this matters:**
@@ -171,10 +188,13 @@ let id = generator.generate(); // Repeat for every service
 **With global defaults** - set once, use everywhere:
 
 ```rust
-use typedflake::Config;
+use typedflake::{TypedFlake, Config};
 
-typedflake::id!(UserId);
-typedflake::id!(OrderId);
+#[derive(TypedFlake)]
+pub struct UserId(u64);
+
+#[derive(TypedFlake)]
+pub struct OrderId(u64);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read from environment (Kubernetes, Docker, etc.)
@@ -182,9 +202,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_id = std::env::var("CONTAINER_ID").unwrap_or("0".into()).parse()?;
 
     // Set defaults once at startup
-    typedflake::global::set_defaults(Config::DISCORD, worker_id, process_id)?;
+    typedflake::global::set_defaults(Config::DEFAULT, worker_id, process_id)?;
     // Or set only config/instance
-    typedflake::global::set_default_config(Config::DISCORD)?;
+    typedflake::global::set_default_config(Config::DEFAULT)?;
     typedflake::global::set_default_instance(worker_id, process_id)?;
 
     // Simple API throughout your application
@@ -197,7 +217,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Component Access
 
 ```rust
-typedflake::id!(UserId);
+use typedflake::TypedFlake;
+
+#[derive(TypedFlake)]
+pub struct UserId(u64);
+
 let id = UserId::generate();
 
 // Decompose to tuple
@@ -219,7 +243,10 @@ let sequence = id.sequence();
 ### Compose IDs from Components
 
 ```rust
-typedflake::id!(UserId);
+use typedflake::TypedFlake;
+
+#[derive(TypedFlake)]
+pub struct UserId(u64);
 
 // Compose with default worker/process (validated)
 let id = UserId::compose(1234567890, 42)?;
@@ -313,7 +340,8 @@ TypedFlake uses a **newtype-driven architecture** where each ID type maintains c
 
 ```
 ┌─────────────────────────────────────────┐
-│ typedflake::id!(UserId)                 │
+│ #[derive(TypedFlake)]                   │
+│ pub struct UserId(u64);                 │
 │                                         │
 │ ┌─────────────────────────────────────┐ │
 │ │ Static IdContext (OnceLock)         │ │
@@ -335,7 +363,7 @@ TypedFlake uses a **newtype-driven architecture** where each ID type maintains c
 
 **Key design:**
 
-- **Per-type isolation**: Each `typedflake::id!(TypeName)` creates a separate static context
+- **Per-type isolation**: Each `#[derive(TypedFlake)] struct TypeName(u64)` creates a separate static context
 - **Lock-free generation**: Atomic compare-and-swap operations on packed u64 state
 - **Lazy allocation**: States created on-demand per (worker, process) pair using DashMap and shared across all generators for that pair
 

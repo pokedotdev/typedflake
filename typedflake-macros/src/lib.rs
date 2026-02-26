@@ -19,12 +19,29 @@ use syn::{Data, DeriveInput, Fields, PathArguments, Type, parse_macro_input};
 /// let id = UserId::generate();
 /// ```
 ///
-/// # Custom Configuration
+/// # Inline Configuration
+///
+/// ```ignore
+/// use typedflake::TypedFlake;
+///
+/// #[derive(TypedFlake)]
+/// #[typedflake(epoch = "2025-01-01")]
+/// pub struct UserId(u64);
+///
+/// #[derive(TypedFlake)]
+/// #[typedflake(layout = (42, 8, 4, 10), epoch = 1600000000000)]
+/// pub struct OrderId(u64);
+/// ```
+///
+/// # Custom Configuration via Const
 ///
 /// ```ignore
 /// use typedflake::{TypedFlake, Config, BitLayout, Epoch};
 ///
-/// const CUSTOM: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
+/// const CUSTOM: Config = Config::new(
+///     BitLayout::new(42, 8, 4, 10),
+///     Epoch::from_date(2025, 1, 1),
+/// );
 ///
 /// #[derive(TypedFlake)]
 /// #[typedflake(config = CUSTOM)]
@@ -39,19 +56,142 @@ pub fn derive_typed_flake(input: TokenStream) -> TokenStream {
     }
 }
 
-struct TypedFlakeAttr {
-    config: syn::Expr,
+enum EpochValue {
+    Millis(u64),
+    Date { year: u16, month: u8, day: u8 },
 }
 
-impl syn::parse::Parse for TypedFlakeAttr {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+enum TypedFlakeAttr {
+    Config(syn::Expr),
+    Inline {
+        layout: Option<(u8, u8, u8, u8)>,
+        epoch: Option<EpochValue>,
+    },
+}
+
+fn parse_typedflake_attr(input: syn::parse::ParseStream) -> syn::Result<TypedFlakeAttr> {
+    let mut config_expr: Option<syn::Expr> = None;
+    let mut layout: Option<(u8, u8, u8, u8)> = None;
+    let mut epoch: Option<EpochValue> = None;
+
+    while !input.is_empty() {
         let ident: syn::Ident = input.parse()?;
-        if ident != "config" {
-            return Err(syn::Error::new(ident.span(), "expected `config`"));
+
+        match ident.to_string().as_str() {
+            "config" => {
+                if layout.is_some() || epoch.is_some() {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        "`config` cannot be combined with `layout` or `epoch`",
+                    ));
+                }
+                if config_expr.is_some() {
+                    return Err(syn::Error::new(ident.span(), "duplicate `config`"));
+                }
+                let _eq: syn::Token![=] = input.parse()?;
+                config_expr = Some(input.parse()?);
+            }
+            "layout" => {
+                if config_expr.is_some() {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        "`layout` cannot be combined with `config`",
+                    ));
+                }
+                if layout.is_some() {
+                    return Err(syn::Error::new(ident.span(), "duplicate `layout`"));
+                }
+                let _eq: syn::Token![=] = input.parse()?;
+                let content;
+                syn::parenthesized!(content in input);
+                let t: syn::LitInt = content.parse()?;
+                let _: syn::Token![,] = content.parse()?;
+                let w: syn::LitInt = content.parse()?;
+                let _: syn::Token![,] = content.parse()?;
+                let p: syn::LitInt = content.parse()?;
+                let _: syn::Token![,] = content.parse()?;
+                let s: syn::LitInt = content.parse()?;
+                // Allow optional trailing comma
+                let _ = content.parse::<syn::Token![,]>();
+
+                let t_val: u8 = t.base10_parse()?;
+                let w_val: u8 = w.base10_parse()?;
+                let p_val: u8 = p.base10_parse()?;
+                let s_val: u8 = s.base10_parse()?;
+
+                let sum = t_val as u16 + w_val as u16 + p_val as u16 + s_val as u16;
+                if sum != 64 {
+                    return Err(syn::Error::new(
+                        t.span(),
+                        format!("bit allocation must sum to 64, got {sum}"),
+                    ));
+                }
+                if t_val == 0 {
+                    return Err(syn::Error::new(t.span(), "timestamp bits must be > 0"));
+                }
+                if s_val == 0 {
+                    return Err(syn::Error::new(s.span(), "sequence bits must be > 0"));
+                }
+
+                layout = Some((t_val, w_val, p_val, s_val));
+            }
+            "epoch" => {
+                if config_expr.is_some() {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        "`epoch` cannot be combined with `config`",
+                    ));
+                }
+                if epoch.is_some() {
+                    return Err(syn::Error::new(ident.span(), "duplicate `epoch`"));
+                }
+                let _eq: syn::Token![=] = input.parse()?;
+
+                let lookahead = input.lookahead1();
+                if lookahead.peek(syn::LitStr) {
+                    let lit: syn::LitStr = input.parse()?;
+                    let val = lit.value();
+                    let parts: Vec<&str> = val.split('-').collect();
+                    if parts.len() != 3 {
+                        return Err(syn::Error::new(
+                            lit.span(),
+                            "expected date format \"YYYY-MM-DD\"",
+                        ));
+                    }
+                    let year: u16 = parts[0]
+                        .parse()
+                        .map_err(|_| syn::Error::new(lit.span(), "invalid year in date"))?;
+                    let month: u8 = parts[1]
+                        .parse()
+                        .map_err(|_| syn::Error::new(lit.span(), "invalid month in date"))?;
+                    let day: u8 = parts[2]
+                        .parse()
+                        .map_err(|_| syn::Error::new(lit.span(), "invalid day in date"))?;
+                    epoch = Some(EpochValue::Date { year, month, day });
+                } else if lookahead.peek(syn::LitInt) {
+                    let lit: syn::LitInt = input.parse()?;
+                    let millis: u64 = lit.base10_parse()?;
+                    epoch = Some(EpochValue::Millis(millis));
+                } else {
+                    return Err(lookahead.error());
+                }
+            }
+            other => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    format!("unknown attribute `{other}`, expected `config`, `layout`, or `epoch`"),
+                ));
+            }
         }
-        let _eq: syn::Token![=] = input.parse()?;
-        let config: syn::Expr = input.parse()?;
-        Ok(TypedFlakeAttr { config })
+
+        // consume optional trailing comma
+        let _ = input.parse::<syn::Token![,]>();
+    }
+
+    if let Some(expr) = config_expr {
+        Ok(TypedFlakeAttr::Config(expr))
+    } else {
+        Ok(TypedFlakeAttr::Inline { layout, epoch })
     }
 }
 
@@ -125,18 +265,54 @@ fn is_u64_type(ty: &Type) -> bool {
     false
 }
 
+fn epoch_to_tokens(epoch: &EpochValue) -> proc_macro2::TokenStream {
+    match epoch {
+        EpochValue::Millis(ms) => quote! { ::typedflake::Epoch::new(#ms) },
+        EpochValue::Date { year, month, day } => {
+            quote! { ::typedflake::Epoch::from_date(#year, #month, #day) }
+        }
+    }
+}
+
 fn parse_config_attr(input: &DeriveInput) -> syn::Result<Option<syn::Expr>> {
     for attr in &input.attrs {
         if attr.path().is_ident("typedflake") {
             match &attr.meta {
                 syn::Meta::List(_) => {
-                    let parsed: TypedFlakeAttr = attr.parse_args()?;
-                    return Ok(Some(parsed.config));
+                    let parsed: TypedFlakeAttr = attr.parse_args_with(parse_typedflake_attr)?;
+                    match parsed {
+                        TypedFlakeAttr::Config(expr) => return Ok(Some(expr)),
+                        TypedFlakeAttr::Inline {
+                            layout: None,
+                            epoch: None,
+                        } => {
+                            return Err(syn::Error::new_spanned(
+                                attr,
+                                "empty #[typedflake(...)] attribute",
+                            ));
+                        }
+                        TypedFlakeAttr::Inline { layout, epoch } => {
+                            let layout_tokens = match layout {
+                                Some((t, w, p, s)) => {
+                                    quote! { ::typedflake::BitLayout::new(#t, #w, #p, #s) }
+                                }
+                                None => quote! { ::typedflake::BitLayout::DEFAULT },
+                            };
+                            let epoch_tokens = match &epoch {
+                                Some(ev) => epoch_to_tokens(ev),
+                                None => quote! { ::typedflake::Epoch::DEFAULT },
+                            };
+                            let expr: syn::Expr = syn::parse_quote! {
+                                ::typedflake::Config::new(#layout_tokens, #epoch_tokens)
+                            };
+                            return Ok(Some(expr));
+                        }
+                    }
                 }
                 _ => {
                     return Err(syn::Error::new_spanned(
                         attr,
-                        "expected #[typedflake(config = EXPR)]",
+                        "expected #[typedflake(...)], e.g. #[typedflake(config = EXPR)] or #[typedflake(epoch = \"2025-01-01\")]",
                     ));
                 }
             }

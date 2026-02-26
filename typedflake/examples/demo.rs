@@ -1,4 +1,4 @@
-use typedflake::{BitLayout, Config, Epoch, TypedFlake};
+use typedflake::TypedFlake;
 
 #[derive(TypedFlake)]
 pub struct UserId(u64);
@@ -6,10 +6,8 @@ pub struct UserId(u64);
 #[derive(TypedFlake)]
 pub struct OrderId(u64);
 
-const CUSTOM: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::from_date(2025, 1, 1));
-
 #[derive(TypedFlake)]
-#[typedflake(config = CUSTOM)]
+#[typedflake(layout = (42, 8, 4, 10), epoch = "2025-01-01")]
 pub struct SessionId(u64);
 
 fn main() {

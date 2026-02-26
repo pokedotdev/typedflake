@@ -122,11 +122,11 @@ typedflake (facade)
 
 ### Core Architecture
 
-**`typedflake-macros/src/lib.rs`** - The `#[derive(TypedFlake)]` proc macro is the primary API entry point. It generates distinct newtype functionality with inherent methods (no trait required). Each generated type maintains its own static `IdContext` using `OnceLock`, ensuring thread-safe per-type state isolation. The macro also generates a typed wrapper struct `<Name>Generator` for each ID type. Supports `#[typedflake(config = EXPR)]` for custom configuration.
+**`typedflake-macros/src/lib.rs`** - The `#[derive(TypedFlake)]` proc macro is the primary API entry point. It generates distinct newtype functionality with inherent methods (no trait required). Each generated type maintains its own static `IdContext` using `OnceLock`, ensuring thread-safe per-type state isolation. The macro also generates a typed wrapper struct `<Name>Generator` for each ID type. Supports `#[typedflake(config = EXPR)]` for external config, or inline `#[typedflake(layout = (t,w,p,s), epoch = "YYYY-MM-DD")]` for one-off configuration.
 
 **`typedflake-core/src/config.rs`** - Provides compile-time configuration with three main types:
 
-- `BitLayout`: Struct containing `timestamp`, `worker`, `process`, `sequence` bit allocations (must sum to 64). Includes industry-standard presets (`TWITTER`, `DISCORD`, `DEFAULT`) and capacity calculation methods.
+- `BitLayout`: Struct containing `timestamp`, `worker`, `process`, `sequence` bit allocations (must sum to 64). Includes `DEFAULT` preset and capacity calculation methods.
 - `Config`: Contains `BitLayout` and epoch timestamp. Pre-calculates shifts, masks, and limits for optimal bit manipulation performance.
 - `ValidationError` and `BitLayoutError`: Error types for configuration validation.
 

@@ -1,12 +1,30 @@
 use typedflake::{BitLayout, Config, Epoch, TypedFlake};
 
+// ==================== Inline Attribute ID Types ====================
+
+#[derive(TypedFlake)]
+#[typedflake(epoch = "2025-01-01")]
+pub struct EpochDateId(u64);
+
+#[derive(TypedFlake)]
+#[typedflake(epoch = 1600000000000)]
+pub struct EpochMillisId(u64);
+
+#[derive(TypedFlake)]
+#[typedflake(layout = (42, 8, 4, 10))]
+pub struct LayoutOnlyId(u64);
+
+#[derive(TypedFlake)]
+#[typedflake(layout = (42, 8, 4, 10), epoch = "2025-01-01")]
+pub struct LayoutAndEpochId(u64);
+
 // ==================== ID Types ====================
 
 #[derive(TypedFlake)]
 pub struct TestId(u64);
 
 const CUSTOM_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = CUSTOM_CONFIG)]
@@ -31,7 +49,7 @@ pub struct DeriveUserId(u64);
 pub struct DeriveOrderId(u64);
 
 const CUSTOM_ALGORITHM: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = CUSTOM_ALGORITHM)]
@@ -44,7 +62,7 @@ pub struct MultiInstanceId(u64);
 pub struct FactoryTestId(u64);
 
 const VALIDATION_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = VALIDATION_CONFIG)]
@@ -54,28 +72,28 @@ pub struct ValidationTestId(u64);
 pub struct TryFromTestId(u64);
 
 const COMPOSE_VALIDATION_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = COMPOSE_VALIDATION_CONFIG)]
 pub struct ComposeValidationId(u64);
 
 const UNCHECKED_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = UNCHECKED_CONFIG)]
 pub struct UncheckedComposeId(u64);
 
 const PARSE_VALIDATION_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = PARSE_VALIDATION_CONFIG)]
 pub struct ParseValidationId(u64);
 
 const UNCHECKED_FROM_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = UNCHECKED_FROM_CONFIG)]
@@ -351,4 +369,54 @@ fn from_u64_unchecked_no_validation() {
 
     let id = UncheckedFromId::from_u64_unchecked(invalid_value);
     assert_eq!(id.as_u64(), invalid_value);
+}
+
+// ==================== Inline Attribute Tests ====================
+
+#[test]
+fn inline_epoch_date() {
+    let id = EpochDateId::generate();
+    assert!(id.as_u64() > 0);
+
+    let components = id.components();
+    assert!(components.timestamp > 0);
+    assert_eq!(components.worker_id, 0);
+    assert_eq!(components.process_id, 0);
+}
+
+#[test]
+fn inline_epoch_millis() {
+    let id = EpochMillisId::generate();
+    assert!(id.as_u64() > 0);
+
+    let components = id.components();
+    assert!(components.timestamp > 0);
+}
+
+#[test]
+fn inline_layout_only() {
+    let id = LayoutOnlyId::generate();
+    assert!(id.as_u64() > 0);
+
+    // layout = (42, 8, 4, 10) → max worker = 255, max process = 15
+    let instance = LayoutOnlyId::instance(255, 15).unwrap();
+    let inst_id = instance.generate();
+    assert_eq!(inst_id.worker_id(), 255);
+    assert_eq!(inst_id.process_id(), 15);
+
+    // Over the limit should fail
+    assert!(LayoutOnlyId::instance(256, 0).is_err());
+}
+
+#[test]
+fn inline_layout_and_epoch() {
+    let id = LayoutAndEpochId::generate();
+    assert!(id.as_u64() > 0);
+
+    let instance = LayoutAndEpochId::instance(100, 10).unwrap();
+    let inst_id = instance.generate();
+    let components = inst_id.components();
+    assert_eq!(components.worker_id, 100);
+    assert_eq!(components.process_id, 10);
+    assert!(components.timestamp > 0);
 }

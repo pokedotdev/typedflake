@@ -333,8 +333,7 @@ mod tests {
     #[test]
     fn max_value_composition_and_overflow() {
         // Test compose/decompose with maximum values for custom config
-        let config =
-            Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_500_000_000_000));
+        let config = Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_500_000_000_000));
         let generator = Generator::new(config, 0, 0).unwrap();
 
         let max_timestamp = (1u64 << 42) - 1; // 42 bits

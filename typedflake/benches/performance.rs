@@ -5,7 +5,7 @@ use typedflake::{BitLayout, Config, Epoch, TypedFlake};
 #[derive(TypedFlake)]
 pub struct BenchId(u64);
 
-const CUSTOM_CONFIG: Config = Config::new_unchecked(BitLayout::new(42, 5, 5, 12), Epoch::DEFAULT);
+const CUSTOM_CONFIG: Config = Config::new(BitLayout::new(42, 5, 5, 12), Epoch::DEFAULT);
 
 #[derive(TypedFlake)]
 #[typedflake(config = CUSTOM_CONFIG)]

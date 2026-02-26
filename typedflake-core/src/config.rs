@@ -5,8 +5,7 @@
 //! - [`Config`] - Complete configuration including bit layout and epoch
 //! - [`Epoch`] - Custom epoch timestamps
 //!
-//! Use industry presets ([`Config::TWITTER`], [`Config::DISCORD`]) or create custom configurations
-//! based on your scaling and throughput needs.
+//! Create custom configurations based on your scaling and throughput needs.
 
 use derive_more::{Display, Error, From};
 use std::fmt;
@@ -80,16 +79,12 @@ impl ConfigError {
 
 /// Epoch timestamp in milliseconds since UNIX epoch
 ///
-/// Provides type-safe epoch configuration with predefined presets
-/// and convenience constructors.
+/// Provides type-safe epoch configuration with convenience constructors.
 ///
 /// # Examples
 ///
 /// ```
 /// use typedflake_core::Epoch;
-///
-/// // Use presets
-/// let epoch = Epoch::DISCORD;
 ///
 /// // From raw milliseconds
 /// let epoch = Epoch::new(1735689600000);
@@ -109,15 +104,6 @@ pub struct Epoch {
 }
 
 impl Epoch {
-    /// Twitter's epoch (Nov 4, 2010 01:42:54 UTC)
-    pub const TWITTER: Self = Self::new(1288834974657);
-
-    /// Discord's epoch (Jan 1, 2015 00:00:00 UTC)
-    pub const DISCORD: Self = Self::new(1420070400000);
-
-    /// Instagram's epoch (Sep 20, 2011 00:00:21 UTC)
-    pub const INSTAGRAM: Self = Self::new(1314220021721);
-
     /// Default epoch (Jan 1, 2025 00:00:00 UTC)
     pub const DEFAULT: Self = Self::new(1735689600000);
 
@@ -241,10 +227,6 @@ impl fmt::Display for Epoch {
 /// ```
 /// use typedflake_core::BitLayout;
 ///
-/// // Use industry-standard presets
-/// let twitter = BitLayout::TWITTER;  // 42t|5w|5p|12s
-/// let discord = BitLayout::DISCORD;  // 42t|5w|5p|12s
-///
 /// // Create custom allocation
 /// let custom = BitLayout::new(45, 8, 4, 7);
 ///
@@ -261,21 +243,7 @@ pub struct BitLayout {
 }
 
 impl BitLayout {
-    /// Twitter Snowflake-inspired allocation (42t|5w|5p|12s)
-    /// - 139 years lifespan
-    /// - 1024 instances (32 workers × 32 processes)
-    /// - 4096 IDs per millisecond
-    ///
-    /// Note: Twitter's original uses a sign bit; we allocate it to timestamp
-    pub const TWITTER: Self = Self::new(42, 5, 5, 12);
-
-    /// Discord's allocation (42t|5w|5p|12s)
-    /// - 139 years lifespan
-    /// - 1024 instances (32 workers × 32 processes)
-    /// - 4096 IDs per millisecond
-    pub const DISCORD: Self = Self::new(42, 5, 5, 12);
-
-    /// Default allocation matching Config::DEFAULT (42t|5w|5p|12s)
+    /// Default allocation (42t|5w|5p|12s)
     /// - 139 years lifespan
     /// - 1024 instances (32 workers × 32 processes)
     /// - 4096 IDs per millisecond
@@ -508,12 +476,8 @@ impl ValidationError {
 /// ```
 /// use typedflake_core::{BitLayout, Config, Epoch};
 ///
-/// // Use presets
-/// const TWITTER: Config = Config::TWITTER;
-/// const DISCORD: Config = Config::DISCORD;
-///
 /// // Custom configuration
-/// const CUSTOM: Config = Config::new_unchecked(
+/// const CUSTOM: Config = Config::new(
 ///     BitLayout::new(42, 5, 5, 12),
 ///     Epoch::from_date(2025, 1, 1)
 /// );
@@ -525,29 +489,15 @@ pub struct Config {
 }
 
 impl Config {
-    /// Twitter Snowflake-inspired configuration (42t|5w|5p|12s)
-    /// - 139 years lifespan
-    /// - 1024 instances (32 workers × 32 processes)
-    /// - 4096 IDs per millisecond per worker
-    /// - Epoch: Nov 4, 2010 01:42:54 UTC
-    pub const TWITTER: Self = Self::new_unchecked(BitLayout::TWITTER, Epoch::TWITTER);
-
-    /// Discord's configuration (42t|5w|5p|12s)
-    /// - 139 years lifespan
-    /// - 1024 instances (32 workers × 32 processes)
-    /// - 4096 IDs per millisecond per instance
-    /// - Epoch: Jan 1, 2015 00:00:00 UTC
-    pub const DISCORD: Self = Self::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
-
     /// Default configuration (42t|5w|5p|12s)
     /// - 139 years lifespan
     /// - 1024 instances (32 workers × 32 processes)
     /// - 4096 IDs per millisecond per instance
     /// - Epoch: Jan 1, 2025 00:00:00 UTC
-    pub const DEFAULT: Self = Self::new_unchecked(BitLayout::DEFAULT, Epoch::DEFAULT);
+    pub const DEFAULT: Self = Self::new(BitLayout::DEFAULT, Epoch::DEFAULT);
 
-    /// Create a new Config without validation (const-compatible)
-    pub const fn new_unchecked(layout: BitLayout, epoch: Epoch) -> Self {
+    /// Create a new Config (const-compatible)
+    pub const fn new(layout: BitLayout, epoch: Epoch) -> Self {
         Config { layout, epoch }
     }
 
@@ -681,7 +631,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new_unchecked(BitLayout::DEFAULT, Epoch::DEFAULT)
+        Self::new(BitLayout::DEFAULT, Epoch::DEFAULT)
     }
 }
 
@@ -704,8 +654,7 @@ mod tests {
 
     #[test]
     fn config_new() {
-        let config =
-            Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
+        let config = Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_600_000_000_000));
 
         assert_eq!(config.layout().timestamp(), 42);
         assert_eq!(config.layout().worker(), 8);
@@ -721,7 +670,7 @@ mod tests {
 
     #[test]
     fn config_zero_process_bits() {
-        let config = Config::new_unchecked(
+        let config = Config::new(
             BitLayout::new(41, 10, 0, 13), // process_bits = 0
             Epoch::DEFAULT,
         );
@@ -733,7 +682,7 @@ mod tests {
     #[test]
     fn validate_instance_boundaries_and_errors() {
         let layout = BitLayout::new(42, 8, 4, 10); // max_worker = 255, max_process = 15
-        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Valid instances - boundaries
         assert!(config.validate_instance(255, 15).is_ok());
@@ -803,7 +752,7 @@ mod tests {
     #[test]
     fn validate_components_success() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Valid at boundaries
         let max_timestamp = (1u64 << 42) - 1;
@@ -827,7 +776,7 @@ mod tests {
     #[test]
     fn validate_components_errors() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Timestamp overflow
         let timestamp_err = config.validate_components(1u64 << 42, 0, 0, 0);
@@ -861,7 +810,7 @@ mod tests {
     #[test]
     fn validate_id_from_raw_u64() {
         let layout = BitLayout::new(42, 8, 4, 10);
-        let config = Config::new_unchecked(layout, Epoch::new(1_600_000_000_000));
+        let config = Config::new(layout, Epoch::new(1_600_000_000_000));
 
         // Create a valid ID manually
         let timestamp = 1000u64;
@@ -908,7 +857,7 @@ mod tests {
 
         // Test in Config
         const CUSTOM_CONFIG: Config =
-            Config::new_unchecked(BitLayout::DEFAULT, Epoch::from_date(2025, 3, 15));
+            Config::new(BitLayout::DEFAULT, Epoch::from_date(2025, 3, 15));
         assert!(CUSTOM_CONFIG.epoch().as_millis() > 0);
     }
 
@@ -1008,16 +957,5 @@ mod tests {
         // Epoch 1 millisecond ago should work
         let one_ms_ago = Epoch::new(current - 1);
         assert!(Config::try_new(layout, one_ms_ago).is_ok());
-    }
-
-    #[test]
-    fn config_try_new_with_presets() {
-        // All preset epochs should be valid with their corresponding layouts
-        assert!(Config::try_new(BitLayout::TWITTER, Epoch::TWITTER).is_ok());
-        assert!(Config::try_new(BitLayout::DISCORD, Epoch::DISCORD).is_ok());
-
-        // Cross-combination should also work (both are 42-bit layouts from ~2010-2015)
-        assert!(Config::try_new(BitLayout::TWITTER, Epoch::DISCORD).is_ok());
-        assert!(Config::try_new(BitLayout::DISCORD, Epoch::TWITTER).is_ok());
     }
 }

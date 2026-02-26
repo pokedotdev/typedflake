@@ -1,7 +1,7 @@
 use typedflake::{BitLayout, Config, Epoch, TypedFlake};
 
 const CUSTOM_CONFIG: Config =
-    Config::new_unchecked(BitLayout::new(42, 8, 4, 10), Epoch::new(1_500_000_000_000));
+    Config::new(BitLayout::new(42, 8, 4, 10), Epoch::new(1_500_000_000_000));
 
 #[derive(TypedFlake)]
 #[typedflake(config = CUSTOM_CONFIG)]
@@ -27,7 +27,7 @@ fn custom_config_with_defaults() {
 
 #[test]
 fn sequence_exhaustion_and_recovery() {
-    let config = Config::new_unchecked(BitLayout::new(50, 5, 5, 4), Epoch::DEFAULT);
+    let config = Config::new(BitLayout::new(50, 5, 5, 4), Epoch::DEFAULT);
 
     let generator = typedflake::Generator::new(config, 1, 1).unwrap();
 

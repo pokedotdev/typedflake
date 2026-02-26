@@ -22,12 +22,16 @@
 //! ## Custom Configuration
 //!
 //! ```rust
-//! use typedflake::{TypedFlake, Config, BitLayout, Epoch};
+//! use typedflake::TypedFlake;
 //!
-//! const CUSTOM: Config = Config::new_unchecked(BitLayout::DISCORD, Epoch::DISCORD);
-//!
+//! // Inline epoch
 //! #[derive(TypedFlake)]
-//! #[typedflake(config = CUSTOM)]
+//! #[typedflake(epoch = "2025-01-01")]
+//! pub struct UserId2(u64);
+//!
+//! // Inline layout + epoch
+//! #[derive(TypedFlake)]
+//! #[typedflake(layout = (42, 8, 4, 10), epoch = "2025-06-01")]
 //! pub struct SessionId(u64);
 //!
 //! fn example() {
