@@ -188,7 +188,7 @@ let id = generator.generate(); // Repeat for every service
 **With global defaults** - set once, use everywhere:
 
 ```rust
-use typedflake::{TypedFlake, Config};
+use typedflake::{Config, TypedFlake};
 
 #[derive(TypedFlake)]
 pub struct UserId(u64);
@@ -202,10 +202,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let process_id = std::env::var("CONTAINER_ID").unwrap_or("0".into()).parse()?;
 
     // Set defaults once at startup
-    typedflake::global::set_defaults(Config::DEFAULT, worker_id, process_id)?;
-    // Or set only config/instance
-    typedflake::global::set_default_config(Config::DEFAULT)?;
-    typedflake::global::set_default_instance(worker_id, process_id)?;
+    typedflake::defaults()
+        .config(Config::DEFAULT)
+        .instance(worker_id, process_id)
+        .init()?;
 
     // Simple API throughout your application
     let user_id = UserId::generate();   // Uses defaults

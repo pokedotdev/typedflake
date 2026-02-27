@@ -14,7 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()?;
 
     // Set default instance once at startup
-    typedflake::global::set_default_instance(worker_id, process_id)?;
+    typedflake::defaults()
+        .instance(worker_id, process_id)
+        .init()?;
 
     // All subsequent ID generation uses default config
     let user_id = UserId::generate(); // Uses default config + instance

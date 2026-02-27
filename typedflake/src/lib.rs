@@ -49,6 +49,7 @@
 
 pub use typedflake_macros::TypedFlake;
 
+pub use typedflake_core::global::defaults;
 pub use typedflake_core::{
     BitLayout, BitLayoutError, Config, ConfigError, Epoch, EpochError, Generator, GeneratorError,
     IdComponents, IdContext, ValidationError, config, context, generator, global, state,

@@ -151,8 +151,8 @@ typedflake (facade)
 
 **`typedflake-core/src/global.rs`** - Global configuration management using `OnceLock`:
 
-- `set_defaults()`, `set_default_config()`, `set_default_instance()` for one-time initialization
-- `get_default_config()` and `get_default_instance()` with fallback to hardcoded defaults
+- `defaults()` returns a `DefaultsBuilder` with `.config()`, `.instance()`, and `.init()` methods for one-time initialization
+- `get_default_config()` and `get_default_instance()` with fallback to hardcoded defaults (internal API)
 
 ### Key Design Patterns
 

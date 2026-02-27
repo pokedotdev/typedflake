@@ -4,8 +4,11 @@
 //! for all ID types in the application. Useful for distributed systems where each service
 //! instance has the same configuration throughout its lifecycle.
 //!
-//! Use [`set_defaults`], [`set_default_config`], or [`set_default_instance`] at application
-//! startup before generating any IDs. These can only be called once.
+//! Use [`defaults()`] at application startup before generating any IDs:
+//!
+//! ```rust,no_run
+//! typedflake_core::global::defaults().instance(1, 2).init().unwrap();
+//! ```
 
 use crate::Config;
 use derive_more::{Display, Error};
@@ -28,41 +31,55 @@ pub enum DefaultConfigError {
     DefaultsAlreadySet,
 }
 
-/// Set default config and instance (can only be called once)
-pub fn set_defaults(
-    config: Config,
-    worker_id: u64,
-    process_id: u64,
-) -> Result<(), DefaultConfigError> {
-    let defaults = GlobalDefaults {
-        config,
-        instance: (worker_id, process_id),
-    };
-    GLOBAL_DEFAULTS
-        .set(defaults)
-        .map_err(|_| DefaultConfigError::DefaultsAlreadySet)
+/// Builder for configuring global defaults.
+///
+/// Created via [`defaults()`]. Call [`init()`](DefaultsBuilder::init) to apply.
+pub struct DefaultsBuilder {
+    config: Option<Config>,
+    instance: Option<(u64, u64)>,
 }
 
-/// Set default config (can only be called once)
-pub fn set_default_config(config: Config) -> Result<(), DefaultConfigError> {
-    let defaults = GlobalDefaults {
-        config,
-        instance: (0, 0),
-    };
-    GLOBAL_DEFAULTS
-        .set(defaults)
-        .map_err(|_| DefaultConfigError::DefaultsAlreadySet)
+impl DefaultsBuilder {
+    /// Set the global default configuration.
+    pub fn config(mut self, config: Config) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// Set the global default worker and process IDs.
+    pub fn instance(mut self, worker_id: u64, process_id: u64) -> Self {
+        self.instance = Some((worker_id, process_id));
+        self
+    }
+
+    /// Initialize global defaults. Unset fields use defaults (`Config::DEFAULT`, `(0, 0)`).
+    ///
+    /// Can only be called once. Returns an error if defaults have already been set.
+    pub fn init(self) -> Result<(), DefaultConfigError> {
+        let defaults = GlobalDefaults {
+            config: self.config.unwrap_or_default(),
+            instance: self.instance.unwrap_or((0, 0)),
+        };
+        GLOBAL_DEFAULTS
+            .set(defaults)
+            .map_err(|_| DefaultConfigError::DefaultsAlreadySet)
+    }
 }
 
-/// Set default instance (can only be called once)
-pub fn set_default_instance(worker_id: u64, process_id: u64) -> Result<(), DefaultConfigError> {
-    let defaults = GlobalDefaults {
-        config: Config::default(),
-        instance: (worker_id, process_id),
-    };
-    GLOBAL_DEFAULTS
-        .set(defaults)
-        .map_err(|_| DefaultConfigError::DefaultsAlreadySet)
+/// Create a builder to configure global defaults.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use typedflake_core::global::defaults;
+///
+/// defaults().instance(1, 2).init().unwrap();
+/// ```
+pub fn defaults() -> DefaultsBuilder {
+    DefaultsBuilder {
+        config: None,
+        instance: None,
+    }
 }
 
 /// Get default config (initializes if not set)
@@ -75,11 +92,6 @@ pub fn get_default_instance() -> (u64, u64) {
     GLOBAL_DEFAULTS
         .get_or_init(GlobalDefaults::default)
         .instance
-}
-
-/// Check if global defaults have been set
-pub fn is_defaults_set() -> bool {
-    GLOBAL_DEFAULTS.get().is_some()
 }
 
 #[cfg(test)]

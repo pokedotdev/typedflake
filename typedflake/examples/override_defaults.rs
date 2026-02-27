@@ -1,4 +1,7 @@
-use typedflake::{Config, TypedFlake};
+use typedflake::{BitLayout, Config, Epoch, TypedFlake};
+
+const CUSTOM_CONFIG: Config =
+    Config::new(BitLayout::new(42, 5, 5, 12), Epoch::from_date(2025, 1, 1));
 
 #[derive(TypedFlake)]
 pub struct UserId(u64);
@@ -16,7 +19,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()?;
 
     // Set default configuration once at startup
-    typedflake::global::set_defaults(Config::DEFAULT, worker_id, process_id)?;
+    typedflake::defaults()
+        .config(CUSTOM_CONFIG)
+        .instance(worker_id, process_id)
+        .init()?;
 
     // All subsequent ID generation uses default config
     let user_id = UserId::generate();
