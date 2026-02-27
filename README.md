@@ -303,8 +303,10 @@ IDs serialize as **strings** (not numbers) for safe cross-language compatibility
 
 ```rust
 use serde::{Deserialize, Serialize};
+use typedflake::TypedFlake;
 
-typedflake::id!(UserId);
+#[derive(TypedFlake)]
+pub struct UserId(u64);
 
 #[derive(Serialize, Deserialize)]
 struct User {
