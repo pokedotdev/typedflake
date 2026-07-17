@@ -1,0 +1,12 @@
+[package]
+name = "axum-sqlx"
+edition.workspace = true
+publish = false
+
+[dependencies]
+typedflake = { workspace = true, features = ["serde"] }
+axum = "0.8"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+tokio = { version = "1", features = ["full"] }

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["typedflake", "typedflake-core", "typedflake-macros"]
+members = ["typedflake", "typedflake-core", "typedflake-macros", "examples/axum-sqlx"]
 
 [workspace.package]
 version = "0.2.0"

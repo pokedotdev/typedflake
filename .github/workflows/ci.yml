@@ -36,6 +36,9 @@ jobs:
       - name: Clippy (all features)
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+      - name: Check Axum + SQLx example
+        run: cargo check -p axum-sqlx
+
   test:
     name: Test (${{ matrix.rust }}, ${{ matrix.features }})
     runs-on: ubuntu-latest
