@@ -23,7 +23,7 @@ move from 0.1 and keep reading existing IDs.
 - `TypedNode` derive for splitting the node into named fields.
 - `typedflake::init(node)` for installing a default node, once per node type.
 - `Generator<Id>`, obtained from `Id::generator(node)`; generators for one ID type and node always share state.
-- `generate_blocking(timeout)` and, with the `tokio` feature, `generate_async()`.
+- `generate_blocking()` and, with the `tokio` feature, `generate_async()`.
 - `Parts`, `parts()`, `from_parts()`, and `unix_millis()` for inspecting and rebuilding IDs.
 - `TryFrom<i64>` and `TryFrom<u64>` for every ID type.
 - `Id` trait for code generic over ID types.

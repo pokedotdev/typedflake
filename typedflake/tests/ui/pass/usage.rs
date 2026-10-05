@@ -1,6 +1,5 @@
 //! The primary usage patterns from the design, compiled together.
 
-use std::time::Duration;
 
 use typedflake::{BitLayout, Epoch, Format, Generator, Parts, TypedNode, typedflake};
 
@@ -70,7 +69,7 @@ fn simple() -> Result<(), Box<dyn std::error::Error>> {
 
     let user_id = UserId::generate()?;
     let _order_id = OrderId::generate()?;
-    let _waited = UserId::generate_blocking(Duration::from_millis(20))?;
+    let _waited = UserId::generate_blocking()?;
 
     let raw: i64 = user_id.get();
     let restored = UserId::try_from(raw)?;

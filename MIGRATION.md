@@ -15,7 +15,7 @@
 | `Config::TWITTER`, `Config::DISCORD`, and their layouts and epochs | Removed; declare the format yourself |
 | `global::set_defaults(config, worker, process)` | `typedflake::init(node)`, once per node type; the format always belongs to the ID type |
 | `UserId::generate()` returns an ID and waits when needed | Returns `Result`; never waits |
-| | `generate_blocking(timeout)` and `generate_async()` wait for capacity |
+| | `generate_blocking()` and `generate_async()` wait for capacity |
 | `UserId::instance(w, p)`, `worker(w)`, `process(p)` | `UserId::generator(node)` returning `Generator<UserId>` |
 | `id.as_u64()` | `id.get()` or `i64::from(id)` |
 | `UserId::try_from_u64(raw)`, `TryFrom<u64>` | `UserId::try_from(raw)` for `i64` and `u64` |
@@ -94,6 +94,6 @@ All 0.1 layouts used the full 64 bits, so they need `u64` unless the top bit is 
 
 - **Startup.** `UserId::generate()` no longer falls back to worker 0 and process 0. Without `typedflake::init`, it returns `GenerateError::NotInitialized`.
 - **Error handling.** Generation returns `Result`. Decide per call site whether to propagate, retry, or use a waiting variant.
-- **Sequence exhaustion.** 0.1 waited for the next millisecond inside `generate()`. To keep that, call `generate_blocking(timeout)` or, in async code, `generate_async()`.
+- **Sequence exhaustion.** 0.1 waited for the next millisecond inside `generate()`. To keep that, call `generate_blocking()` or, in async code, `generate_async()`.
 - **Clock rollback.** A clock behind the last generated ID is now an error that clears on its own once the clock catches up.
 - **Validation.** Negative `i64` values and values with reserved bits are rejected everywhere, including Serde and database decoding.

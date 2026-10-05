@@ -6,7 +6,6 @@ use core::fmt;
 use core::num::ParseIntError;
 use core::str::FromStr;
 use std::sync::OnceLock;
-use std::time::Duration;
 
 use crate::format::{Format, Layout};
 use crate::generator::{self, GenerateError, Generator, GeneratorError};
@@ -131,10 +130,10 @@ pub trait Id: Copy + Send + Sync + 'static {
         generator::default_generator::<Self>()?.generate()
     }
 
-    /// Like [`generate`](Self::generate), but waits up to `timeout` for
-    /// sequence capacity.
-    fn generate_blocking(timeout: Duration) -> Result<Self, GenerateError> {
-        generator::default_generator::<Self>()?.generate_blocking(timeout)
+    /// Like [`generate`](Self::generate), but blocks the thread while it
+    /// waits for sequence capacity.
+    fn generate_blocking() -> Result<Self, GenerateError> {
+        generator::default_generator::<Self>()?.generate_blocking()
     }
 
     /// Like [`generate`](Self::generate), but waits for sequence capacity on a

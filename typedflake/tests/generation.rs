@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::sync::Barrier;
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use typedflake::{GenerateError, Generator, GeneratorError, Id, NodeError, TypedNode, typedflake};
 
@@ -45,7 +45,7 @@ fn ids_from_one_generator_are_unique_and_increasing() {
 
     let generator = UserId::generator(1).unwrap();
     let ids: Vec<UserId> = (0..10_000)
-        .map(|_| generator.generate_blocking(Duration::from_secs(1)).unwrap())
+        .map(|_| generator.generate_blocking().unwrap())
         .collect();
 
     assert!(ids.windows(2).all(|pair| pair[0] < pair[1]));
@@ -116,7 +116,7 @@ fn concurrent_generators_for_one_node_never_collide() {
                     };
                     barrier.wait();
                     (0..PER_THREAD)
-                        .map(|_| generator.generate_blocking(Duration::from_secs(5)).unwrap())
+                        .map(|_| generator.generate_blocking().unwrap())
                         .collect::<Vec<_>>()
                 })
             })
@@ -162,7 +162,7 @@ fn exhausting_a_small_sequence_fails_fast_and_blocking_waits_it_out() {
     assert!(exhausted);
 
     let ids: HashSet<TinyId> = (0..50)
-        .map(|_| generator.generate_blocking(Duration::from_secs(1)).unwrap())
+        .map(|_| generator.generate_blocking().unwrap())
         .collect();
     assert_eq!(ids.len(), 50);
 }

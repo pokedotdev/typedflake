@@ -187,8 +187,8 @@ mod tests {
 
         assert_eq!(state.next(&layout, || Ok(7)).unwrap(), (7, 0));
         assert!(matches!(
-            state.next(&layout, || Err(GenerateError::WaitTimeout)),
-            Err(GenerateError::WaitTimeout)
+            state.next(&layout, || Err(GenerateError::TimestampExhausted)),
+            Err(GenerateError::TimestampExhausted)
         ));
         assert_eq!(state.next(&layout, || Ok(7)).unwrap(), (7, 1));
     }

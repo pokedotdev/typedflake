@@ -19,8 +19,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         (0..1_000).any(|_| matches!(TicketId::generate(), Err(GenerateError::SequenceExhausted)));
     println!("ran out of sequence numbers: {exhausted}");
 
-    // Blocking code waits with a time budget.
-    let id = TicketId::generate_blocking(Duration::from_millis(20))?;
+    // Blocking code sleeps until the next millisecond.
+    let id = TicketId::generate_blocking()?;
     println!("blocking: {id}");
 
     // Async code waits on a Tokio timer, bounded by a normal Tokio timeout.

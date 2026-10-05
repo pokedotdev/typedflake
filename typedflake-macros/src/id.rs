@@ -436,12 +436,10 @@ fn generate(input: &DeriveInput, field_ty: &Type, repr: Repr, args: &Args) -> To
                 <Self as #tf::Id>::generate()
             }
 
-            /// Generates an ID with the default node, waiting up to `timeout`
-            /// for sequence capacity.
-            pub fn generate_blocking(
-                timeout: ::core::time::Duration,
-            ) -> ::core::result::Result<Self, #tf::GenerateError> {
-                <Self as #tf::Id>::generate_blocking(timeout)
+            /// Generates an ID with the default node, blocking the thread
+            /// while it waits for sequence capacity.
+            pub fn generate_blocking() -> ::core::result::Result<Self, #tf::GenerateError> {
+                <Self as #tf::Id>::generate_blocking()
             }
 
             #generate_async

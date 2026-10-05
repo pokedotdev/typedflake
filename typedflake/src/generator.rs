@@ -4,7 +4,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant, SystemTimeError};
+use std::time::SystemTimeError;
 
 use crate::clock;
 use crate::global;
@@ -79,25 +79,18 @@ impl<I: Id> Generator<I> {
         ))
     }
 
-    /// Generates an ID, waiting up to `timeout` for sequence capacity.
+    /// Generates an ID, blocking the thread while it waits for sequence
+    /// capacity.
     ///
     /// Only sequence exhaustion is retried; every other error returns at once.
-    /// Generation is attempted at least once, even with a zero timeout. If
-    /// capacity is still unavailable when the budget runs out, this returns
-    /// [`GenerateError::WaitTimeout`].
-    pub fn generate_blocking(&self, timeout: Duration) -> Result<I, GenerateError> {
-        let started = Instant::now();
+    /// Capacity returns with the next millisecond.
+    pub fn generate_blocking(&self) -> Result<I, GenerateError> {
         loop {
             match self.generate() {
                 Err(GenerateError::SequenceExhausted) => {}
                 result => return result,
             }
-
-            let remaining = timeout.saturating_sub(started.elapsed());
-            if remaining.is_zero() {
-                return Err(GenerateError::WaitTimeout);
-            }
-            thread::sleep(remaining.min(clock::until_next_milli()));
+            thread::sleep(clock::until_next_milli());
         }
     }
 
@@ -207,8 +200,6 @@ pub enum GenerateError {
     SequenceExhausted,
     /// The current time no longer fits the format's timestamp width.
     TimestampExhausted,
-    /// Sequence capacity did not return within the wait budget.
-    WaitTimeout,
 }
 
 impl fmt::Display for GenerateError {
@@ -237,7 +228,6 @@ impl fmt::Display for GenerateError {
             Self::TimestampExhausted => {
                 f.write_str("current time no longer fits the ID's timestamp bits")
             }
-            Self::WaitTimeout => f.write_str("timed out waiting for sequence capacity"),
         }
     }
 }
@@ -321,7 +311,7 @@ mod tests {
         ));
         // Waiting entry points do not retry a rollback.
         assert!(matches!(
-            generator.generate_blocking(Duration::from_millis(50)),
+            generator.generate_blocking(),
             Err(GenerateError::ClockRollback { behind_millis: 20 })
         ));
 
@@ -350,31 +340,6 @@ mod tests {
     }
 
     #[test]
-    fn blocking_wait_is_bounded_and_always_attempts_once() {
-        #[typedflake(epoch = "2025-01-01", bits(timestamp = 41, node = 10, sequence = 1))]
-        struct TestId(i64);
-
-        let _clock = mock::freeze(EPOCH + 1);
-        let generator = TestId::generator(3).unwrap();
-
-        // A zero budget still attempts generation.
-        generator.generate_blocking(Duration::ZERO).unwrap();
-        generator.generate_blocking(Duration::ZERO).unwrap();
-        assert!(matches!(
-            generator.generate_blocking(Duration::ZERO),
-            Err(GenerateError::WaitTimeout)
-        ));
-
-        // The frozen clock never frees capacity, so the budget must end the wait.
-        let started = Instant::now();
-        assert!(matches!(
-            generator.generate_blocking(Duration::from_millis(20)),
-            Err(GenerateError::WaitTimeout)
-        ));
-        assert!(started.elapsed() >= Duration::from_millis(20));
-    }
-
-    #[test]
     fn timestamp_exhaustion_is_permanent() {
         #[typedflake(epoch = "2025-01-01", bits(timestamp = 4, node = 10, sequence = 12))]
         struct TestId(i64);
@@ -389,7 +354,7 @@ mod tests {
             Err(GenerateError::TimestampExhausted)
         ));
         assert!(matches!(
-            generator.generate_blocking(Duration::from_millis(50)),
+            generator.generate_blocking(),
             Err(GenerateError::TimestampExhausted)
         ));
     }
@@ -439,6 +404,8 @@ mod tests {
 
 #[cfg(all(test, feature = "tokio"))]
 mod tokio_tests {
+    use std::time::Duration;
+
     use typedflake::typedflake;
 
     use super::*;

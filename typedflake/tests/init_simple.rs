@@ -3,7 +3,6 @@
 
 use std::collections::HashSet;
 use std::thread;
-use std::time::Duration;
 
 use typedflake::{GenerateError, GeneratorError, InitError, NodeError, TypedNode, typedflake};
 
@@ -35,7 +34,7 @@ fn plain_node_default_lifecycle() {
         Err(GenerateError::NotInitialized { node: "u32" })
     ));
     assert!(matches!(
-        UserId::generate_blocking(Duration::from_millis(1)),
+        UserId::generate_blocking(),
         Err(GenerateError::NotInitialized { node: "u32" })
     ));
 
@@ -58,13 +57,7 @@ fn plain_node_default_lifecycle() {
     // Every plain-node ID type picks up the default.
     assert_eq!(UserId::generate().unwrap().parts().node, 17);
     assert_eq!(OrderId::generate().unwrap().parts().node, 17);
-    assert_eq!(
-        UserId::generate_blocking(Duration::from_millis(50))
-            .unwrap()
-            .parts()
-            .node,
-        17
-    );
+    assert_eq!(UserId::generate_blocking().unwrap().parts().node, 17);
 
     // A default that does not fit one ID's node width fails only for that ID.
     assert!(matches!(
@@ -92,13 +85,13 @@ fn plain_node_default_lifecycle() {
     let ids: Vec<UserId> = thread::scope(|scope| {
         let statics = scope.spawn(|| {
             (0..20_000)
-                .map(|_| UserId::generate_blocking(Duration::from_secs(5)).unwrap())
+                .map(|_| UserId::generate_blocking().unwrap())
                 .collect::<Vec<_>>()
         });
         let explicit = scope.spawn(|| {
             let generator = UserId::generator(17).unwrap();
             (0..20_000)
-                .map(|_| generator.generate_blocking(Duration::from_secs(5)).unwrap())
+                .map(|_| generator.generate_blocking().unwrap())
                 .collect::<Vec<_>>()
         });
         let mut ids = statics.join().unwrap();

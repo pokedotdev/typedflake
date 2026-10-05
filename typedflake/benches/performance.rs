@@ -3,7 +3,7 @@
 use std::hint::black_box;
 use std::sync::Barrier;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use typedflake::{Parts, TypedNode, typedflake};
@@ -40,7 +40,7 @@ fn generation(c: &mut Criterion) {
 
     // Bound by the layout's 4096 IDs per millisecond, not by CPU time.
     group.bench_function("blocking_across_sequence_rollover", |b| {
-        b.iter(|| DefaultId::generate_blocking(Duration::from_secs(1)).unwrap())
+        b.iter(|| DefaultId::generate_blocking().unwrap())
     });
 
     for threads in [2, 4, 8] {

@@ -203,15 +203,14 @@ Generators are cheap to clone and safe to share between threads.
 To wait for the next millisecond instead of handling `SequenceExhausted` yourself:
 
 ```rust
-use std::time::Duration;
 use typedflake::typedflake;
 
 #[typedflake(epoch = "2025-01-01")]
 pub struct UserId(i64);
 
 async fn create_ids() -> Result<(), Box<dyn std::error::Error>> {
-    // Blocks the thread for at most 20 ms.
-    let id = UserId::generate_blocking(Duration::from_millis(20))?;
+    // Blocks the thread until the next millisecond.
+    let id = UserId::generate_blocking()?;
 
     // Waits on a Tokio timer (feature `tokio`).
     let id = UserId::generate_async().await?;
