@@ -5,7 +5,7 @@ members = ["typedflake", "typedflake-core", "typedflake-macros", "examples/axum-
 [workspace.package]
 version = "0.2.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.99"
 license = "MIT"
 authors = ["pokedotdev <hi@poke.dev>"]
 repository = "https://github.com/pokedotdev/typedflake"

@@ -2,7 +2,7 @@
 
 ## Workspace Map
 
-TypedFlake is a Rust 2024 workspace with MSRV 1.85. Keep changes within the appropriate crate:
+TypedFlake is a Rust 2024 workspace with MSRV 1.99. Keep changes within the appropriate crate:
 
 - `typedflake/`: public facade and re-exports; integration tests, examples, and Criterion benchmarks live under `tests/`, `examples/`, and `benches/`.
 - `typedflake-core/`: runtime configuration, generation, context, and state management.
