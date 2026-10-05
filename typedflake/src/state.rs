@@ -21,46 +21,56 @@ impl State {
     /// Reserves the next `(timestamp, sequence)`. A failed call leaves the
     /// state unchanged.
     ///
-    /// `elapsed` reads the milliseconds since the epoch and is called after
-    /// every load of the state. That order matters: a stored timestamp was
+    /// `elapsed` reads the milliseconds since the epoch. It is called before
+    /// each load of the state, so the compare-and-swap follows its load
+    /// directly: reading the clock in between would give other threads time
+    /// to change the state, and the swap would fail almost every time under
+    /// contention.
+    ///
+    /// The price is that a reading taken before the load can be behind a
+    /// millisecond another thread stored in between. A stored timestamp was
     /// read from the clock before it was stored, so a reading taken after the
-    /// load can only be behind it if the clock itself went backwards. Reading
-    /// the clock once up front would instead report a rollback whenever
-    /// another thread stored a newer millisecond in between.
+    /// load can only be behind it if the clock itself went backwards. A
+    /// rollback is therefore confirmed with a second reading before it is
+    /// reported.
     pub(crate) fn next(
         &self,
         layout: &Layout,
         mut elapsed: impl FnMut() -> Result<u64, GenerateError>,
     ) -> Result<(u64, u64), GenerateError> {
-        let mut current = self.0.load(Ordering::Acquire);
         loop {
-            let elapsed = elapsed()?;
-            if elapsed > layout.timestamp_max {
-                return Err(GenerateError::TimestampExhausted);
-            }
-
+            let mut now = elapsed()?;
+            let current = self.0.load(Ordering::Acquire);
             let last_timestamp = current >> layout.sequence_bits;
             let last_sequence = current & layout.sequence_max;
 
-            let sequence = if elapsed > last_timestamp {
+            if now < last_timestamp {
+                now = elapsed()?;
+                if now < last_timestamp {
+                    return Err(GenerateError::ClockRollback {
+                        behind_millis: last_timestamp - now,
+                    });
+                }
+            }
+            if now > layout.timestamp_max {
+                return Err(GenerateError::TimestampExhausted);
+            }
+
+            let sequence = if now > last_timestamp {
                 0
-            } else if elapsed < last_timestamp {
-                return Err(GenerateError::ClockRollback {
-                    behind_millis: last_timestamp - elapsed,
-                });
             } else if last_sequence < layout.sequence_max {
                 last_sequence + 1
             } else {
                 return Err(GenerateError::SequenceExhausted);
             };
 
-            let next = (elapsed << layout.sequence_bits) | sequence;
-            match self
+            let next = (now << layout.sequence_bits) | sequence;
+            if self
                 .0
                 .compare_exchange_weak(current, next, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
             {
-                Ok(_) => return Ok((elapsed, sequence)),
-                Err(actual) => current = actual,
+                return Ok((now, sequence));
             }
         }
     }
@@ -164,8 +174,8 @@ mod tests {
         let mut readings = 0;
 
         // The first reading is taken, then another caller stores a newer
-        // millisecond before this one's compare-and-swap. The retry must read
-        // the clock again instead of comparing the stale reading.
+        // millisecond before this one loads the state. The stale reading must
+        // be replaced by a fresh one instead of being reported as a rollback.
         let slot = state.next(&layout, || {
             readings += 1;
             if readings == 1 {

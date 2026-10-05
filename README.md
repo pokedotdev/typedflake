@@ -385,8 +385,8 @@ Measured with `cargo bench -p typedflake --bench performance` on an AMD Ryzen 7 
 
 | Operation | Time |
 | --- | --- |
-| `generate()` | 38 ns |
-| `generate()`, 4 threads sharing one node | 63 ns |
+| `generate()` | 35 ns |
+| `generate()`, 4 threads sharing one node | 18 ns |
 | `try_from(i64)` | under 1 ns |
 | `to_string()` | 25 ns |
 | `parse()` | 12 ns |

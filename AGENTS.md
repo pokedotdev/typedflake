@@ -37,7 +37,7 @@ Runtime modules in `typedflake/src/`:
 - `format.rs`: `Epoch`, `BitLayout`, and `Format`. Each ID declaration validates its format in a const, so an invalid format is a compile error at the declaration.
 - `node.rs`: the `Node` trait. `u32` is the only integer node, which lets `init(17)` infer its type; `TypedNode` structs have a fixed width.
 - `id.rs`: the `Id` trait and the single validation path used by every constructor and integration.
-- `state.rs`: the last timestamp and sequence in one `AtomicU64`, advanced with compare-and-swap. The clock is read after each load of the state, so another thread's newer millisecond is not mistaken for a rollback.
+- `state.rs`: the last timestamp and sequence in one `AtomicU64`, advanced with compare-and-swap. The clock is read before each load so the swap follows its load directly, and a rollback is confirmed with a second reading, so another thread's newer millisecond is not mistaken for one.
 - `generator.rs`: `Generator<I>` and the cached generator behind `Id::generate()`.
 - `global.rs`: `init`, with one default node per node type.
 - `clock.rs`: wall-clock access, with a thread-local mock for unit tests.
