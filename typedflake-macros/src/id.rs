@@ -102,6 +102,7 @@ fn last_segment(path: &Path) -> Option<String> {
 struct Args {
     format: FormatSource,
     node: Option<Type>,
+    alphabet: Option<Expr>,
 }
 
 enum FormatSource {
@@ -125,6 +126,7 @@ impl Args {
         let mut format: Option<(Path, Expr)> = None;
         let mut bits: Option<(Path, Bits)> = None;
         let mut node: Option<(Path, Type)> = None;
+        let mut alphabet: Option<(Path, Expr)> = None;
 
         let parser = syn::meta::parser(|meta| {
             let key = meta.path.get_ident().map(ToString::to_string);
@@ -145,9 +147,13 @@ impl Args {
                     let value = parse_bits(&meta)?;
                     set_once(&mut bits, &meta, value)
                 }
-                _ => {
-                    Err(meta.error("unknown option; expected `epoch`, `bits`, `format`, or `node`"))
+                Some("alphabet") => {
+                    let value = meta.value()?.parse()?;
+                    set_once(&mut alphabet, &meta, value)
                 }
+                _ => Err(meta.error(
+                    "unknown option; expected `epoch`, `bits`, `format`, `node`, or `alphabet`",
+                )),
             }
         });
         parser.parse2(args)?;
@@ -177,6 +183,7 @@ impl Args {
         Ok(Self {
             format,
             node: node.map(|(_, node)| node),
+            alphabet: alphabet.map(|(_, alphabet)| alphabet),
         })
     }
 }
@@ -375,6 +382,35 @@ fn generate(input: &DeriveInput, field_ty: &Type, repr: Repr, args: &Args) -> To
         }
     });
 
+    let encoding = args.alphabet.as_ref().map(|alphabet| {
+        quote! {
+            impl #tf::EncodedId for #name {
+                const ALPHABET: #tf::Alphabet = #alphabet;
+            }
+
+            // Reports an invalid alphabet at the declaration, instead of at
+            // the first `encode` or `decode`.
+            const _: #tf::Alphabet = <#name as #tf::EncodedId>::ALPHABET;
+
+            impl #name {
+                /// Writes the ID in its alphabet, without allocating.
+                ///
+                /// Every ID of the type has the same length.
+                pub fn encode(self) -> #tf::Encoded {
+                    <Self as #tf::EncodedId>::encode(self)
+                }
+
+                /// Reads an ID written by `encode`. Only that exact form is
+                /// accepted.
+                pub fn decode(
+                    text: &str,
+                ) -> ::core::result::Result<Self, #tf::DecodeIdError> {
+                    <Self as #tf::EncodedId>::decode(text)
+                }
+            }
+        }
+    });
+
     quote! {
         #(#attrs)*
         #[derive(
@@ -523,5 +559,7 @@ fn generate(input: &DeriveInput, field_ty: &Type, repr: Repr, args: &Args) -> To
                 id.0
             }
         }
+
+        #encoding
     }
 }

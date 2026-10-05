@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Instant;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use typedflake::{Parts, TypedNode, typedflake};
+use typedflake::{Alphabet, Parts, TypedNode, typedflake};
 
 /// Default layout: 4096 IDs per millisecond.
 #[typedflake(epoch = "2025-01-01")]
@@ -28,6 +28,13 @@ pub struct AppNode {
 
 #[typedflake(epoch = "2025-01-01", node = AppNode)]
 pub struct TypedId(i64);
+
+#[typedflake(epoch = "2025-01-01", alphabet = Alphabet::BASE62)]
+pub struct Base62Id(i64);
+
+/// A power-of-two base, for comparison with base 62.
+#[typedflake(epoch = "2025-01-01", alphabet = Alphabet::BASE64_URL)]
+pub struct Base64Id(i64);
 
 fn generation(c: &mut Criterion) {
     typedflake::init(0).unwrap();
@@ -109,6 +116,21 @@ fn values(c: &mut Criterion) {
     group.bench_function("to_string", |b| b.iter(|| black_box(id).to_string()));
     group.bench_function("parse", |b| {
         b.iter(|| black_box(text.as_str()).parse::<DefaultId>().unwrap())
+    });
+
+    let base62 = Base62Id::try_from(id.get()).unwrap();
+    let base62_text = base62.encode();
+    group.bench_function("encode_base62", |b| b.iter(|| black_box(base62).encode()));
+    group.bench_function("decode_base62", |b| {
+        b.iter(|| Base62Id::decode(black_box(base62_text.as_str())).unwrap())
+    });
+    let base64 = Base64Id::try_from(id.get()).unwrap();
+    let base64_text = base64.encode();
+    group.bench_function("encode_base64_url", |b| {
+        b.iter(|| black_box(base64).encode())
+    });
+    group.bench_function("decode_base64_url", |b| {
+        b.iter(|| Base64Id::decode(black_box(base64_text.as_str())).unwrap())
     });
 
     #[cfg(feature = "serde")]

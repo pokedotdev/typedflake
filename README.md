@@ -11,6 +11,7 @@ Snowflake-style IDs for Rust, where every kind of ID is its own type.
 - **Fits your database.** IDs are `i64` and never negative, ready for a `BIGINT` column.
 - **Works across servers.** Each process generates its own IDs, with no coordination.
 - **Custom formats.** Choose the epoch and the bit layout, checked at compile time.
+- **Text encoding.** Base 62 for URLs, or any alphabet you define.
 - **Optional integrations.** Serde, SQLx (PostgreSQL), and `postgres-types`.
 
 ## Quick start
@@ -255,6 +256,64 @@ Converting from an integer or a string checks that the value is a valid ID for t
 
 To write code that is generic over ID types, use the `typedflake::Id` trait.
 
+## Encoding IDs as text
+
+An ID is a number, and `to_string()` writes it in decimal: up to 19 digits. For URLs, share links, or codes people type, give the type an **alphabet** and it gains `encode()` and `decode()`:
+
+```rust
+use typedflake::{Alphabet, typedflake};
+
+#[typedflake(epoch = "2025-01-01", alphabet = Alphabet::BASE62)]
+pub struct UserId(i64);
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let id = UserId::try_from(232_900_560_974_681_078_i64)?;
+
+    // No allocation; use it as a `&str` or print it.
+    let text = id.encode();
+    assert_eq!(text.as_str(), "0HCgayuFvMs");
+    println!("https://example.com/users/{text}");
+
+    // Checked like every other way of building an ID.
+    assert_eq!(UserId::decode("0HCgayuFvMs")?, id);
+    assert!(UserId::decode("not-an-id").is_err());
+    Ok(())
+}
+```
+
+- **Fixed length.** Every ID of a type encodes to the same number of characters.
+- **One text per ID.** `decode()` only accepts exactly what `encode()` writes.
+- **Only for text.** `to_string()`, Serde, and the database keep using the number.
+
+### Built-in alphabets
+
+| Alphabet | Characters | Length of an `i64` ID |
+| --- | --- | --- |
+| `Alphabet::BASE36` | `0-9 a-z` | 13 |
+| `Alphabet::BASE58` | Bitcoin's: no `0`, `O`, `I`, or `l` | 11 |
+| `Alphabet::BASE62` | `0-9 A-Z a-z` | 11 |
+| `Alphabet::BASE64_URL` | `- 0-9 A-Z _ a-z` | 11 |
+
+With these, encoded IDs sort the same way the IDs do. `BASE64_URL` has the characters of base64url in a different order: it is not base64, and its IDs can start with `-`.
+
+### Your own alphabet
+
+Any 2 to 94 different ASCII characters work. The first one is the digit zero:
+
+```rust
+use typedflake::{Alphabet, typedflake};
+
+// Digits and lowercase letters, without the easily confused `0`, `1`, `i`, `l`, and `o`.
+pub const FRIENDLY: Alphabet = Alphabet::new("23456789abcdefghjkmnpqrstuvwxyz");
+
+#[typedflake(epoch = "2025-01-01", alphabet = FRIENDLY)]
+pub struct InviteId(i64);
+```
+
+A repeated or unsupported character is a compile error. Fewer characters make longer IDs, and encoded IDs sort like the IDs only if the characters are listed in ASCII order.
+
+To write code that is generic over encoded IDs, use the `typedflake::EncodedId` trait.
+
 ## Integrations
 
 Each integration is a Cargo feature plus a derive on the IDs that need it:
@@ -390,6 +449,8 @@ Measured with `cargo bench -p typedflake --bench performance` on an AMD Ryzen 7 
 | `try_from(i64)` | under 1 ns |
 | `to_string()` | 25 ns |
 | `parse()` | 12 ns |
+| `encode()`, base 62 | 8 ns |
+| `decode()`, base 62 | 14 ns |
 
 ## License
 

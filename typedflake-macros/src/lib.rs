@@ -33,6 +33,8 @@ mod util;
 ///   `bits`.
 /// - `node = Type`: a `TypedNode` struct that splits the node field into named
 ///   parts. Defaults to a plain `u32` node number.
+/// - `alphabet = CONSTANT`: an `Alphabet` for a compact text form. Adds
+///   `encode` and `decode`, and implements `EncodedId`.
 ///
 /// # Generated items
 ///

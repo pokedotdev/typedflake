@@ -27,9 +27,10 @@ move from 0.1 and keep reading existing IDs.
 - `Parts`, `parts()`, `from_parts()`, and `unix_millis()` for inspecting and rebuilding IDs.
 - `TryFrom<i64>` and `TryFrom<u64>` for every ID type.
 - `Id` trait for code generic over ID types.
+- `alphabet` option with `Alphabet`, adding `encode()` and `decode()` for a compact, fixed-length text form. Presets: `BASE36`, `BASE58`, `BASE62`, and `BASE64_URL`.
 - `typedflake::SqlxPostgres` derive (feature `sqlx-postgres`) for SQLx 0.8, including arrays.
 - `typedflake::Postgres` derive (feature `postgres`) for `postgres-types` 0.2.
-- Typed errors: `FormatError`, `NodeError`, `InitError`, `GeneratorError`, `GenerateError`, `InvalidId`, `ParseIdError`, `TimestampError`.
+- Typed errors: `FormatError`, `NodeError`, `InitError`, `GeneratorError`, `GenerateError`, `InvalidId`, `ParseIdError`, `DecodeIdError`, `TimestampError`.
 
 ### Changed
 

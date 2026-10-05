@@ -1,7 +1,7 @@
 //! The primary usage patterns from the design, compiled together.
 
 
-use typedflake::{BitLayout, Epoch, Format, Generator, Parts, TypedNode, typedflake};
+use typedflake::{Alphabet, BitLayout, Encoded, Epoch, Format, Generator, Parts, TypedNode, typedflake};
 
 pub const APP_IDS: Format = Format {
     epoch: Epoch::from_date(2025, 1, 1),
@@ -22,6 +22,8 @@ pub const WIDE_IDS: Format = Format {
     epoch: Epoch::new(1_735_689_600_000),
     bits: SHARED_BITS,
 };
+
+pub const FRIENDLY: Alphabet = Alphabet::new("23456789abcdefghjkmnpqrstuvwxyz");
 
 #[derive(Debug, Clone, Copy, TypedNode)]
 pub struct AppNode {
@@ -60,6 +62,12 @@ mod ids {
     #[derive(Default)]
     #[allow(dead_code)]
     pub struct ReducedId(i64);
+
+    #[typedflake(epoch = "2025-01-01", alphabet = Alphabet::BASE62)]
+    pub struct LinkId(i64);
+
+    #[typedflake(format = APP_IDS, node = AppNode, alphabet = FRIENDLY)]
+    pub struct InviteId(u64);
 }
 
 use ids::*;
@@ -112,7 +120,20 @@ fn typed() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn encoded() -> Result<(), Box<dyn std::error::Error>> {
+    let id = LinkId::try_from(1_i64)?;
+    let text: Encoded = id.encode();
+    let _same = LinkId::decode(&text)?;
+    let _same = LinkId::decode(text.as_str())?;
+    println!("{text}");
+
+    let invite = InviteId::try_from(1_u64)?;
+    let _same = InviteId::decode(&invite.encode())?;
+    Ok(())
+}
+
 fn main() {
+    let _ = encoded();
     let _ = simple();
     let _ = typed();
 }

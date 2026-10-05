@@ -27,6 +27,16 @@ struct DuplicateEpoch(i64);
 #[typedflake(epoch = "2025-01-01", layout = (41, 10, 12))]
 struct UnknownOption(i64);
 
+#[typedflake(
+    epoch = "2025-01-01",
+    alphabet = typedflake::Alphabet::BASE62,
+    alphabet = typedflake::Alphabet::BASE58,
+)]
+struct DuplicateAlphabet(i64);
+
+#[typedflake(epoch = "2025-01-01", alphabet = "0123456789")]
+struct AlphabetNotConstant(i64);
+
 #[typedflake(epoch = "2025-01-01" node = u32)]
 struct MissingComma(i64);
 

@@ -52,6 +52,7 @@ compile_error!("typedflake requires a target with 64-bit atomics");
 extern crate self as typedflake;
 
 mod clock;
+mod encoding;
 mod format;
 mod generator;
 mod global;
@@ -60,6 +61,7 @@ mod integrations;
 mod node;
 mod state;
 
+pub use encoding::{Alphabet, DecodeIdError, Encoded, EncodedId};
 pub use format::{BitLayout, Epoch, Format, FormatError};
 pub use generator::{GenerateError, Generator, GeneratorError};
 pub use global::{InitError, init};
@@ -121,10 +123,20 @@ struct MigrationDoctests;
 /// const EPOCH: typedflake::Epoch = typedflake::Epoch::from_date(2025, 2, 30);
 /// ```
 ///
+/// An alphabet with a repeated character fails at the declaration that uses
+/// it, even if nothing is ever encoded:
+///
+/// ```compile_fail
+/// use typedflake::{Alphabet, typedflake};
+///
+/// #[typedflake(epoch = "2025-01-01", alphabet = Alphabet::new("abca"))]
+/// struct LinkId(i64);
+/// ```
+///
 /// The same declarations compile once corrected:
 ///
 /// ```
-/// use typedflake::typedflake;
+/// use typedflake::{Alphabet, typedflake};
 ///
 /// #[typedflake(epoch = "2025-01-01")]
 /// struct UserId(i64);
@@ -132,6 +144,9 @@ struct MigrationDoctests;
 /// let id = UserId::try_from(1_i64).unwrap();
 /// let next = id.get() + 1;
 /// const EPOCH: typedflake::Epoch = typedflake::Epoch::from_date(2025, 2, 28);
+///
+/// #[typedflake(epoch = "2025-01-01", alphabet = Alphabet::new("abc"))]
+/// struct LinkId(i64);
 /// # let _ = (next, EPOCH);
 /// ```
 #[cfg(doctest)]
