@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.0](https://github.com/pokedotdev/typedflake/compare/v0.1.3...v0.2.0) - 2026-10-04
+
 A redesign of the whole interface. See [MIGRATION.md](MIGRATION.md) for how to
 move from 0.1 and keep reading existing IDs.
 

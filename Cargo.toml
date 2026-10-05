@@ -3,7 +3,7 @@ resolver = "3"
 members = ["typedflake", "typedflake-macros", "tests/renamed-dependency", "examples/axum-sqlx"]
 
 [workspace.package]
-version = "0.1.3"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
@@ -12,8 +12,8 @@ repository = "https://github.com/pokedotdev/typedflake"
 homepage = "https://github.com/pokedotdev/typedflake"
 
 [workspace.dependencies]
-typedflake = { path = "typedflake", version = "0.1.3" }
-typedflake-macros = { path = "typedflake-macros", version = "=0.1.3" }
+typedflake = { path = "typedflake", version = "0.2.0" }
+typedflake-macros = { path = "typedflake-macros", version = "=0.2.0" }
 serde = { version = "1.0", default-features = false, features = ["std"] }
 sqlx = { version = "0.8", default-features = false }
 postgres-types = "0.2"
