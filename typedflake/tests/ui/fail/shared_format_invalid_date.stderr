@@ -1,0 +1,22 @@
+error[E0080]: evaluation panicked: typedflake: epoch must be a real calendar date on or after 1970-01-01
+ --> tests/ui/fail/shared_format_invalid_date.rs:4:12
+  |
+4 |     epoch: Epoch::from_date(2025, 2, 30),
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `INVALID` failed inside this call
+  |
+note: inside `Epoch::from_date`
+ --> $RUST/core/src/panic.rs
+  |
+  |         $crate::panicking::panic_display(&$arg);
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
+  |
+ ::: src/format.rs
+  |
+  |             Err(error) => panic!("{}", error.message()),
+  |                           ----------------------------- in this macro invocation
+
+note: erroneous constant encountered
+  --> tests/ui/fail/shared_format_invalid_date.rs:13:13
+   |
+13 |     let _ = INVALID;
+   |             ^^^^^^^

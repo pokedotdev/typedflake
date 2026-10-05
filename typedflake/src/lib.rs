@@ -1,60 +1,85 @@
-//! # TypedFlake
+//! Snowflake-style IDs as distinct, validated newtypes.
 //!
-//! Distributed, type-safe Snowflake ID generation for Rust.
+//! Declare an ID type with [`#[typedflake]`](macro@typedflake), install a node
+//! once with [`init`], and generate IDs anywhere:
 //!
-//! Generate unique, time-ordered 64-bit IDs across distributed systems without coordination.
-//! Each ID type is a distinct newtype that cannot be mixed with others at compile time.
+//! ```standalone_crate
+//! use typedflake::typedflake;
 //!
-//! ## Quick Start
-//!
-//! ```rust
-//! use typedflake::TypedFlake;
-//!
-//! #[derive(TypedFlake)]
-//! pub struct UserId(u64);
-//!
-//! fn example() {
-//!     let id = UserId::generate();
-//!     let (timestamp, worker_id, process_id, sequence) = id.decompose();
-//! }
-//! ```
-//!
-//! ## Custom Configuration
-//!
-//! ```rust
-//! use typedflake::TypedFlake;
-//!
-//! // Inline epoch
-//! #[derive(TypedFlake)]
 //! #[typedflake(epoch = "2025-01-01")]
-//! pub struct UserId2(u64);
+//! pub struct UserId(i64);
 //!
-//! // Inline layout + epoch
-//! #[derive(TypedFlake)]
-//! #[typedflake(layout = (42, 8, 4, 10), epoch = "2025-06-01")]
-//! pub struct SessionId(u64);
+//! #[typedflake(epoch = "2025-01-01")]
+//! pub struct OrderId(i64);
 //!
-//! fn example() {
-//!     let id = SessionId::generate();
-//! }
+//! // Once, during application startup.
+//! typedflake::init(17)?;
+//!
+//! // Anywhere in the application.
+//! let user_id = UserId::generate()?;
+//! let order_id = OrderId::generate()?;
+//!
+//! assert_eq!(user_id.parts().node, 17);
+//! assert_eq!(order_id.to_string().parse::<OrderId>()?, order_id);
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! ## Main Types
+//! `UserId` and `OrderId` are separate types: they cannot be mixed up, and each
+//! keeps its own generation state.
 //!
-//! - [`Config`] - Complete configuration (bit layout + epoch)
-//! - [`BitLayout`] - Bit allocation for the 64-bit ID space
-//! - [`Epoch`] - Custom epoch timestamps
+//! # Uniqueness
 //!
-//! Use `#[derive(TypedFlake)]` to create new ID types with their own independent state.
+//! IDs of one type are unique as long as no two running processes use the same
+//! node for it, and the system clock does not move backwards across a restart.
+//! This crate does not assign nodes or coordinate deployments.
+//!
+//! # Features
+//!
+//! | Feature | Enables |
+//! | --- | --- |
+//! | `serde` | [`Serde`](macro@Serde) derive |
+//! | `sqlx-postgres` | [`SqlxPostgres`](macro@SqlxPostgres) derive |
+//! | `postgres` | [`Postgres`](macro@Postgres) derive for `postgres-types` |
+//! | `tokio` | `generate_async` methods |
 
-pub use typedflake_macros::TypedFlake;
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
 
-pub use typedflake_core::global::defaults;
-pub use typedflake_core::{
-    BitLayout, BitLayoutError, Config, ConfigError, Epoch, EpochError, Generator, GeneratorError,
-    IdComponents, IdContext, ValidationError, config, context, generator, global, state,
-};
+#[cfg(not(target_has_atomic = "64"))]
+compile_error!("typedflake requires a target with 64-bit atomics");
 
-#[cfg(feature = "serde")]
+// Generated code refers to `::typedflake`, including inside this crate.
+extern crate self as typedflake;
+
+mod clock;
+mod format;
+mod generator;
+mod global;
+mod id;
+mod integrations;
+mod node;
+mod state;
+
+pub use format::{BitLayout, Epoch, Format, FormatError};
+pub use generator::{GenerateError, Generator, GeneratorError};
+pub use global::{InitError, init};
+pub use id::{Id, InvalidId, ParseIdError, Parts, Repr, TimestampError};
+pub use node::{Node, NodeError};
+pub use typedflake_macros::{Postgres, Serde, SqlxPostgres, TypedNode, typedflake};
+
+/// Support for generated code. Not part of the public interface.
 #[doc(hidden)]
-pub use serde as __serde;
+pub mod __private {
+    pub use std::sync::OnceLock;
+
+    pub use crate::format::{Layout, default_bits};
+    pub use crate::id::{from_i64, from_u64, parse};
+    pub use crate::node::pack_field;
+
+    #[cfg(feature = "postgres")]
+    pub use crate::integrations::postgres;
+    #[cfg(feature = "serde")]
+    pub use crate::integrations::serde;
+    #[cfg(feature = "sqlx-postgres")]
+    pub use crate::integrations::sqlx_postgres;
+}

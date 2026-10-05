@@ -1,0 +1,11 @@
+error: `typedflake::SqlxPostgres` supports only `i64` IDs; PostgreSQL `BIGINT` cannot hold every `u64`
+ --> tests/ui/fail_all_features/unsigned_database_ids.rs:5:15
+  |
+5 | struct SqlxId(u64);
+  |               ^^^
+
+error: `typedflake::Postgres` supports only `i64` IDs; PostgreSQL `BIGINT` cannot hold every `u64`
+ --> tests/ui/fail_all_features/unsigned_database_ids.rs:9:19
+  |
+9 | struct PostgresId(u64);
+  |                   ^^^

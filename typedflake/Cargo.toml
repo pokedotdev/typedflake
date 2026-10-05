@@ -1,6 +1,6 @@
 [package]
 name = "typedflake"
-description = "A Snowflake-style ID generator library with newtype-driven design"
+description = "Snowflake-style IDs as distinct, validated newtypes"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,22 +13,42 @@ readme = "../README.md"
 keywords = ["snowflake", "id-generator", "distributed", "unique-id", "newtype"]
 categories = ["data-structures", "algorithms", "concurrency"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
-typedflake-core.workspace = true
 typedflake-macros.workspace = true
 serde = { workspace = true, optional = true }
+sqlx = { workspace = true, features = ["postgres"], optional = true }
+postgres-types = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["time"], optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
+proptest.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+trybuild.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "test-util"] }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "derive"] }
+tokio-postgres = "0.7"
+bincode = "1.3"
 
 [features]
 default = []
-serde = ["dep:serde", "typedflake-core/serde", "typedflake-macros/serde"]
+serde = ["dep:serde", "typedflake-macros/serde"]
+sqlx-postgres = ["dep:sqlx", "typedflake-macros/sqlx-postgres"]
+postgres = ["dep:postgres-types", "typedflake-macros/postgres"]
+tokio = ["dep:tokio", "typedflake-macros/tokio"]
+
 
 [[example]]
 name = "serde"
 required-features = ["serde"]
+
+[[example]]
+name = "waiting"
+required-features = ["tokio"]
 
 [[bench]]
 name = "performance"

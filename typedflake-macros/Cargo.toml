@@ -1,6 +1,6 @@
 [package]
 name = "typedflake-macros"
-description = "Derive macro for TypedFlake ID generation"
+description = "Procedural macros for TypedFlake ID declarations"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,9 +13,14 @@ proc-macro = true
 
 [dependencies]
 proc-macro2.workspace = true
+proc-macro-crate.workspace = true
 quote.workspace = true
 syn.workspace = true
 
+# Marker features: they select which integration code the macros emit.
 [features]
 default = []
 serde = []
+sqlx-postgres = []
+postgres = []
+tokio = []

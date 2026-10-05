@@ -1,38 +1,41 @@
-//! Example demonstrating JSON serialization with serde
+//! Serialize IDs with Serde.
 //!
-//! Run with: cargo run --example serde --features serde
+//! Run with `cargo run -p typedflake --example serde --features serde`.
 
 use serde::{Deserialize, Serialize};
-use typedflake::TypedFlake;
+use typedflake::typedflake;
 
-#[derive(TypedFlake)]
-pub struct UserId(u64);
+#[typedflake(epoch = "2025-01-01")]
+#[derive(typedflake::Serde)]
+pub struct UserId(i64);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 struct User {
     id: UserId,
     name: String,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a user with generated ID
+    typedflake::init(17)?;
+
     let user = User {
-        id: UserId::generate(),
-        name: "Alice".to_string(),
+        id: UserId::generate()?,
+        name: "Alice".to_owned(),
     };
 
-    println!("User: {user:?}");
+    // IDs are written as strings: JSON numbers lose precision above 2^53.
+    let json = serde_json::to_string(&user)?;
+    println!("{json}");
 
-    // Serialize to JSON (ID will be a string, safe for JavaScript)
-    let json = serde_json::to_string_pretty(&user)?;
-    println!("\nJSON:\n{json}");
-
-    // Deserialize back
-    let deserialized: User = serde_json::from_str(&json)?;
-    println!("\nDeserialized: {deserialized:?}");
-
-    // Verify roundtrip
-    assert_eq!(user.id, deserialized.id);
+    // Strings and integers are both accepted, and both are validated.
+    let parsed: User = serde_json::from_str(&json)?;
+    assert_eq!(parsed.id, user.id);
+    let from_number: User = serde_json::from_str(r#"{"id":42,"name":"Bob"}"#)?;
+    println!("{from_number:?}");
+    println!(
+        "negative: {}",
+        serde_json::from_str::<UserId>("-1").unwrap_err()
+    );
 
     Ok(())
 }

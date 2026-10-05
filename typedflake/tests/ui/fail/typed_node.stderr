@@ -1,0 +1,65 @@
+error: missing `#[node(bits = N)]` on this field
+ --> tests/ui/fail/typed_node.rs:7:5
+  |
+7 |     process: u8,
+  |     ^^^^^^^^^^^
+
+error: node fields must be `u8`, `u16`, or `u32`
+  --> tests/ui/fail/typed_node.rs:13:13
+   |
+13 |     worker: u64,
+   |             ^^^
+
+error: `bits` must be between 1 and 8 for a `u8` field
+  --> tests/ui/fail/typed_node.rs:18:19
+   |
+18 |     #[node(bits = 0)]
+   |                   ^
+
+error: `bits` must be between 1 and 8 for a `u8` field
+  --> tests/ui/fail/typed_node.rs:24:19
+   |
+24 |     #[node(bits = 9)]
+   |                   ^
+
+error: unknown option; expected `bits`
+  --> tests/ui/fail/typed_node.rs:30:12
+   |
+30 |     #[node(width = 5)]
+   |            ^^^^^
+
+error: duplicate `bits` option
+  --> tests/ui/fail/typed_node.rs:37:12
+   |
+37 |     #[node(bits = 5)]
+   |            ^^^^
+
+error: node fields add up to 63 bits, but an ID has room for at most 62 node bits
+  --> tests/ui/fail/typed_node.rs:42:8
+   |
+42 | struct TooWide {
+   |        ^^^^^^^
+
+error: `TypedNode` supports only structs with named `u8`, `u16`, or `u32` fields
+  --> tests/ui/fail/typed_node.rs:50:8
+   |
+50 | struct Tuple(u8, u8);
+   |        ^^^^^
+
+error: `TypedNode` requires at least one field
+  --> tests/ui/fail/typed_node.rs:53:8
+   |
+53 | struct Empty {}
+   |        ^^^^^
+
+error: `TypedNode` does not support generic node types
+  --> tests/ui/fail/typed_node.rs:56:15
+   |
+56 | struct Generic<T> {
+   |               ^^^
+
+error: `TypedNode` supports only structs with named `u8`, `u16`, or `u32` fields
+  --> tests/ui/fail/typed_node.rs:62:6
+   |
+62 | enum NotAStruct {
+   |      ^^^^^^^^^^

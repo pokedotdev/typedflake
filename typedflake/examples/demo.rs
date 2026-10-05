@@ -1,40 +1,44 @@
-use typedflake::TypedFlake;
+//! Declare ID types, install a node once, and generate IDs anywhere.
+//!
+//! Run with `cargo run -p typedflake --example demo`.
 
-#[derive(TypedFlake)]
-pub struct UserId(u64);
+use typedflake::typedflake;
 
-#[derive(TypedFlake)]
-pub struct OrderId(u64);
+#[typedflake(epoch = "2025-01-01")]
+pub struct UserId(i64);
 
-#[derive(TypedFlake)]
-#[typedflake(layout = (42, 8, 4, 10), epoch = "2025-01-01")]
-pub struct SessionId(u64);
+#[typedflake(epoch = "2025-01-01")]
+pub struct OrderId(i64);
 
-fn main() {
-    // Basic generation (default instance: worker=0, process=0)
-    let user = UserId::generate();
-    let order = OrderId::generate();
-    let session = SessionId::generate();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Once, during application startup. The node must be unique among the
+    // running processes that generate the same ID types.
+    typedflake::init(17)?;
 
-    println!("Generated IDs:");
-    println!("  User:    {user}");
-    println!("  Order:   {order}");
-    println!("  Session: {session}");
+    let user_id = UserId::generate()?;
+    let order_id = OrderId::generate()?;
+    println!("user  {user_id} ({user_id:?})");
+    println!("order {order_id} ({order_id:?})");
 
-    // Instance-based generation for distributed systems
-    let worker_5 = UserId::worker(5).unwrap();
-    let id1 = worker_5.generate();
-    let id2 = worker_5.generate();
+    // IDs convert to and from their integer and decimal string.
+    let raw: i64 = user_id.get();
+    assert_eq!(UserId::try_from(raw)?, user_id);
+    assert_eq!(user_id.to_string().parse::<UserId>()?, user_id);
 
-    println!("\nWorker 5 IDs:");
-    println!("  ID 1: {id1}");
-    println!("  ID 2: {id2}");
+    // Invalid values are rejected instead of becoming IDs.
+    println!("negative input: {}", UserId::try_from(-1_i64).unwrap_err());
 
-    // Extract components
-    let (timestamp, worker_id, process_id, sequence) = user.decompose();
-    println!("\nUser ID components:");
-    println!("  Timestamp:  {timestamp}");
-    println!("  Worker ID:  {worker_id}");
-    println!("  Process ID: {process_id}");
-    println!("  Sequence:   {sequence}");
+    // Every ID can be taken apart, without any global state.
+    let parts = user_id.parts();
+    println!(
+        "elapsed {} ms, node {}, sequence {}",
+        parts.elapsed_millis, parts.node, parts.sequence
+    );
+    println!(
+        "created at {} ms since the Unix epoch",
+        user_id.unix_millis()?
+    );
+    assert_eq!(UserId::from_parts(parts)?, user_id);
+
+    Ok(())
 }

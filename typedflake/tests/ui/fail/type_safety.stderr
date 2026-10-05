@@ -1,0 +1,112 @@
+error[E0308]: mismatched types
+  --> tests/ui/fail/type_safety.rs:32:16
+   |
+32 |     takes_user(order);
+   |     ---------- ^^^^^ expected `UserId`, found `OrderId`
+   |     |
+   |     arguments to this function are incorrect
+   |
+note: function defined here
+  --> tests/ui/fail/type_safety.rs:26:4
+   |
+26 | fn takes_user(_: UserId) {}
+   |    ^^^^^^^^^^ ---------
+
+error[E0308]: mismatched types
+  --> tests/ui/fail/type_safety.rs:33:22
+   |
+33 |     let _ = order == UserId::try_from(1_i64).unwrap();
+   |             -----    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `OrderId`, found `UserId`
+   |             |
+   |             expected because this is `ids::OrderId`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+  --> tests/ui/fail/type_safety.rs:36:13
+   |
+36 |     let _ = UserId(1);
+   |             ^^^^^^
+   |
+   = note: a struct named `UserId` exists in another namespace
+note: constructor is not visible here due to private fields
+  --> tests/ui/fail/type_safety.rs:15:23
+   |
+15 |     pub struct UserId(i64);
+   |                       ^^^ private field
+help: consider making the field publicly accessible
+   |
+15 |     pub struct UserId(pub i64);
+   |                       +++
+
+error[E0277]: the trait bound `ids::UserId: From<i64>` is not satisfied
+  --> tests/ui/fail/type_safety.rs:37:27
+   |
+37 |     let _: UserId = 1_i64.into();
+   |                           ^^^^ unsatisfied trait bound
+   |
+help: the trait `From<i64>` is not implemented for `ids::UserId`
+  --> tests/ui/fail/type_safety.rs:14:5
+   |
+14 |     #[typedflake(epoch = "2025-01-01")]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `i64` to implement `Into<ids::UserId>`
+   = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0369]: cannot add `{integer}` to `ids::OrderId`
+  --> tests/ui/fail/type_safety.rs:40:19
+   |
+40 |     let _ = order + 1;
+   |             ----- ^ - {integer}
+   |             |
+   |             ids::OrderId
+   |
+note: an implementation of `Add<{integer}>` might be missing for `ids::OrderId`
+  --> tests/ui/fail/type_safety.rs:17:5
+   |
+17 |     #[typedflake(epoch = "2025-01-01")]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `Add<{integer}>`
+note: the trait `Add` must be implemented
+  --> $RUST/core/src/ops/arith.rs
+   |
+   | pub const trait Add<Rhs = Self> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0614]: type `ids::OrderId` cannot be dereferenced
+  --> tests/ui/fail/type_safety.rs:41:13
+   |
+41 |     let _ = *order;
+   |             ^^^^^^ can't be dereferenced
+
+error[E0308]: mismatched types
+  --> tests/ui/fail/type_safety.rs:44:32
+   |
+44 |     let _ = TypedId::generator(17);
+   |             ------------------ ^^ expected `AppNode`, found integer
+   |             |
+   |             arguments to this function are incorrect
+   |
+note: associated function defined here
+  --> tests/ui/fail/type_safety.rs:20:5
+   |
+20 |     #[typedflake(epoch = "2025-01-01", node = AppNode)]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> tests/ui/fail/type_safety.rs:45:31
+   |
+45 |       let _ = UserId::generator(AppNode {
+   |  _____________-----------------_^
+   | |             |
+   | |             arguments to this function are incorrect
+46 | |         worker: 1,
+47 | |         process: 1,
+48 | |     });
+   | |_____^ expected `u32`, found `AppNode`
+   |
+note: associated function defined here
+  --> tests/ui/fail/type_safety.rs:14:5
+   |
+14 |     #[typedflake(epoch = "2025-01-01")]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)

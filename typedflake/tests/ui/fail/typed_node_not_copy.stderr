@@ -1,0 +1,16 @@
+error[E0277]: the trait bound `NotCopy: Copy` is not satisfied
+ --> tests/ui/fail/typed_node_not_copy.rs:4:8
+  |
+4 | struct NotCopy {
+  |        ^^^^^^^ the trait `Copy` is not implemented for `NotCopy`
+  |
+note: required by a bound in `typedflake::Node`
+ --> src/node.rs
+  |
+  | pub trait Node: Copy + Send + Sync + 'static {
+  |                 ^^^^ required by this bound in `Node`
+help: consider annotating `NotCopy` with `#[derive(Copy)]`
+  |
+4 + #[derive(Copy)]
+5 | struct NotCopy {
+  |
