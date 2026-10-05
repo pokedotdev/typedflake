@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: typedflake: sequence width must be greater than zero
+  --> tests/ui/fail/shared_format_zero_width.rs:12:1
+   |
+12 | #[typedflake(format = NO_SEQUENCE)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

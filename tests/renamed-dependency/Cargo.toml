@@ -1,0 +1,12 @@
+[package]
+name = "renamed-dependency"
+description = "Checks that generated code works when `typedflake` is renamed in the manifest"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+tf = { package = "typedflake", path = "../../typedflake", features = ["serde", "sqlx-postgres", "postgres", "tokio"] }
+
+[dev-dependencies]
+serde_json.workspace = true

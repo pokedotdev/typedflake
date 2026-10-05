@@ -1,0 +1,15 @@
+# `typedflake` and `typedflake-macros` are released together under one
+# version, one tag (`vX.Y.Z`), and the changelog at the repository root.
+
+[[package]]
+name = "typedflake"
+changelog_path = "CHANGELOG.md"
+changelog_include = ["typedflake-macros"]
+git_tag_name = "v{{ version }}"
+git_release_name = "v{{ version }}"
+
+[[package]]
+name = "typedflake-macros"
+changelog_update = false
+git_tag_enable = false
+git_release_enable = false

@@ -1,0 +1,120 @@
+error: `#[typedflake]` requires `epoch = "YYYY-MM-DD"` or `format = CONSTANT`
+  --> tests/ui/fail/options.rs:12:1
+   |
+12 | #[typedflake]
+   | ^^^^^^^^^^^^^
+   |
+   = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `#[typedflake]` requires `epoch = "YYYY-MM-DD"` or `format = CONSTANT`
+  --> tests/ui/fail/options.rs:15:1
+   |
+15 | #[typedflake(bits(timestamp = 41, node = 10, sequence = 12))]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `format` already sets the epoch and bits; remove this option or `format`
+  --> tests/ui/fail/options.rs:18:32
+   |
+18 | #[typedflake(format = APP_IDS, epoch = "2025-01-01")]
+   |                                ^^^^^
+
+error: `format` already sets the epoch and bits; remove this option or `format`
+  --> tests/ui/fail/options.rs:21:32
+   |
+21 | #[typedflake(format = APP_IDS, bits(timestamp = 41, node = 10, sequence = 12))]
+   |                                ^^^^
+
+error: duplicate `epoch` option
+  --> tests/ui/fail/options.rs:24:36
+   |
+24 | #[typedflake(epoch = "2025-01-01", epoch = "2025-01-02")]
+   |                                    ^^^^^^^^^^^^^^^^^^^^
+
+error: unknown option; expected `epoch`, `bits`, `format`, `node`, or `alphabet`
+  --> tests/ui/fail/options.rs:27:36
+   |
+27 | #[typedflake(epoch = "2025-01-01", layout = (41, 10, 12))]
+   |                                    ^^^^^^
+
+error: duplicate `alphabet` option
+  --> tests/ui/fail/options.rs:33:5
+   |
+33 |     alphabet = typedflake::Alphabet::BASE58,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: expected `,`
+  --> tests/ui/fail/options.rs:40:35
+   |
+40 | #[typedflake(epoch = "2025-01-01" node = u32)]
+   |                                   ^^^^
+
+error: expected `bits(timestamp = N, node = N, sequence = N)`
+  --> tests/ui/fail/options.rs:43:36
+   |
+43 | #[typedflake(epoch = "2025-01-01", bits = (41, 10, 12))]
+   |                                    ^^^^
+
+error: unexpected literal in nested attribute, expected ident
+  --> tests/ui/fail/options.rs:46:41
+   |
+46 | #[typedflake(epoch = "2025-01-01", bits(41, 10, 12))]
+   |                                         ^^
+
+error: `bits(...)` requires all of `timestamp`, `node`, and `sequence`
+  --> tests/ui/fail/options.rs:49:36
+   |
+49 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 41, node = 10))]
+   |                                    ^^^^
+
+error: unknown width; expected `timestamp`, `node`, or `sequence`
+  --> tests/ui/fail/options.rs:52:83
+   |
+52 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 41, node = 10, sequence = 12, worker = 5))]
+   |                                                                                   ^^^^^^
+
+error: duplicate `node` width
+  --> tests/ui/fail/options.rs:55:68
+   |
+55 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 41, node = 10, node = 10, sequence = 2))]
+   |                                                                    ^^^^
+
+error: bit widths add up to 64, but `i64` has 63 usable bits
+  --> tests/ui/fail/options.rs:58:36
+   |
+58 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 42, node = 10, sequence = 12))]
+   |                                    ^^^^
+
+error: bit widths add up to 65, but `u64` has 64 usable bits
+  --> tests/ui/fail/options.rs:61:36
+   |
+61 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 43, node = 10, sequence = 12))]
+   |                                    ^^^^
+
+error: timestamp width must be greater than zero
+  --> tests/ui/fail/options.rs:64:53
+   |
+64 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 0, node = 10, sequence = 12))]
+   |                                                     ^
+
+error: sequence width must be greater than zero
+  --> tests/ui/fail/options.rs:67:79
+   |
+67 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 41, node = 10, sequence = 0))]
+   |                                                                               ^
+
+error: number too large to fit in target type
+  --> tests/ui/fail/options.rs:70:53
+   |
+70 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 300, node = 10, sequence = 12))]
+   |                                                     ^^^
+
+error[E0308]: mismatched types
+  --> tests/ui/fail/options.rs:37:47
+   |
+37 | #[typedflake(epoch = "2025-01-01", alphabet = "0123456789")]
+   | ----------------------------------------------^^^^^^^^^^^^--
+   | |                                             |
+   | |                                             expected `Alphabet`, found `&str`
+   | expected because of the type of the associated constant

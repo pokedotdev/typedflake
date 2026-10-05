@@ -1,0 +1,53 @@
+error: `Clone` is already implemented by `#[typedflake]`; remove it from the derive list
+ --> tests/ui/fail/attributes.rs:4:10
+  |
+4 | #[derive(Clone)]
+  |          ^^^^^
+
+error: `Debug` is already implemented by `#[typedflake]`; remove it from the derive list
+ --> tests/ui/fail/attributes.rs:8:19
+  |
+8 | #[derive(Default, std::fmt::Debug)]
+  |                   ^^^^^^^^^^^^^^^
+
+error: `PartialEq` is already implemented by `#[typedflake]`; remove it from the derive list
+  --> tests/ui/fail/attributes.rs:12:10
+   |
+12 | #[derive(PartialEq, Eq)]
+   |          ^^^^^^^^^
+
+error: derive `typedflake::Serde` instead; `Serialize` would bypass ID validation
+  --> tests/ui/fail/attributes.rs:16:10
+   |
+16 | #[derive(serde::Serialize)]
+   |          ^^^^^^^^^^^^^^^^
+
+error: derive `typedflake::Serde` instead; `Deserialize` would bypass ID validation
+  --> tests/ui/fail/attributes.rs:20:10
+   |
+20 | #[derive(Deserialize)]
+   |          ^^^^^^^^^^^
+
+error: derive `typedflake::SqlxPostgres` instead; `Type` would bypass ID validation
+  --> tests/ui/fail/attributes.rs:24:10
+   |
+24 | #[derive(sqlx::Type)]
+   |          ^^^^^^^^^^
+
+error: derive `typedflake::Postgres` instead; `ToSql` would bypass ID validation
+  --> tests/ui/fail/attributes.rs:28:10
+   |
+28 | #[derive(ToSql, FromSql)]
+   |          ^^^^^
+
+error: `#[typedflake]` already applies `#[repr(transparent)]`; remove this attribute
+  --> tests/ui/fail/attributes.rs:32:1
+   |
+32 | #[repr(C)]
+   | ^^^^^^^^^^
+
+error: duplicate `#[typedflake]` attribute
+  --> tests/ui/fail/attributes.rs:36:1
+   |
+36 | #[typedflake(epoch = "2025-01-01")]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

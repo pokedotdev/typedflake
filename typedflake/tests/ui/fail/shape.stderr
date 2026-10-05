@@ -1,0 +1,41 @@
+error: `#[typedflake]` supports only tuple structs with one `i64` or `u64` field, like `struct UserId(i64);`
+ --> tests/ui/fail/shape.rs:4:8
+  |
+4 | struct Named {
+  |        ^^^^^
+
+error: `#[typedflake]` supports only tuple structs with one `i64` or `u64` field, like `struct UserId(i64);`
+ --> tests/ui/fail/shape.rs:9:17
+  |
+9 | struct TwoFields(i64, i64);
+  |                 ^^^^^^^^^^
+
+error: `#[typedflake]` supports only tuple structs with one `i64` or `u64` field, like `struct UserId(i64);`
+  --> tests/ui/fail/shape.rs:12:8
+   |
+12 | struct Unit;
+   |        ^^^^
+
+error: `#[typedflake]` supports only tuple structs with one `i64` or `u64` field, like `struct UserId(i64);`
+  --> tests/ui/fail/shape.rs:15:21
+   |
+15 | struct WrongInteger(u32);
+   |                     ^^^
+
+error: `#[typedflake]` does not support generic ID types
+  --> tests/ui/fail/shape.rs:18:15
+   |
+18 | struct Generic<T>(T);
+   |               ^^^
+
+error: the field of an ID must be private; read it with `.get()` and build IDs with `try_from`
+  --> tests/ui/fail/shape.rs:21:20
+   |
+21 | struct PublicField(pub i64);
+   |                    ^^^
+
+error: `#[typedflake]` supports only tuple structs with one `i64` or `u64` field, like `struct UserId(i64);`
+  --> tests/ui/fail/shape.rs:24:6
+   |
+24 | enum NotAStruct {
+   |      ^^^^^^^^^^

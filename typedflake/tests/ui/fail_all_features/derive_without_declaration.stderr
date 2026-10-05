@@ -1,0 +1,41 @@
+error: `typedflake::Serde` supports only tuple structs with one `i64` or `u64` field, like `struct UserId(i64);`
+ --> tests/ui/fail_all_features/derive_without_declaration.rs:5:8
+  |
+5 | struct NotAnId {
+  |        ^^^^^^^
+
+error[E0277]: the trait bound `NotDeclared: Id` is not satisfied
+ --> tests/ui/fail_all_features/derive_without_declaration.rs:1:10
+  |
+1 | #[derive(typedflake::Serde)]
+  |          ^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+  |
+help: the trait `Id` is not implemented for `NotDeclared`
+ --> tests/ui/fail_all_features/derive_without_declaration.rs:2:1
+  |
+2 | struct NotDeclared(i64);
+  | ^^^^^^^^^^^^^^^^^^
+note: required by a bound in `typedflake::__private::serde::serialize`
+ --> src/integrations/serde.rs
+  |
+  | pub fn serialize<I: Id, S: Serializer>(id: &I, serializer: S) -> Result<S::Ok, S::Error> {
+  |                     ^^ required by this bound in `serialize`
+  = note: this error originates in the derive macro `typedflake::Serde` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `NotDeclared: Id` is not satisfied
+ --> tests/ui/fail_all_features/derive_without_declaration.rs:1:10
+  |
+1 | #[derive(typedflake::Serde)]
+  |          ^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+  |
+help: the trait `Id` is not implemented for `NotDeclared`
+ --> tests/ui/fail_all_features/derive_without_declaration.rs:2:1
+  |
+2 | struct NotDeclared(i64);
+  | ^^^^^^^^^^^^^^^^^^
+note: required by a bound in `typedflake::__private::serde::deserialize`
+ --> src/integrations/serde.rs
+  |
+  | pub fn deserialize<'de, I: Id, D: Deserializer<'de>>(deserializer: D) -> Result<I, D::Error> {
+  |                            ^^ required by this bound in `deserialize`
+  = note: this error originates in the derive macro `typedflake::Serde` (in Nightly builds, run with -Z macro-backtrace for more info)

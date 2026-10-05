@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: typedflake: bit widths exceed the 63 usable bits of `i64`
+  --> tests/ui/fail/shared_format_too_wide.rs:15:1
+   |
+15 | #[typedflake(format = WIDE)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

@@ -1,0 +1,5 @@
+error[E0080]: evaluation panicked: typedflake: node type width does not match the format's node bits
+  --> tests/ui/fail/node_width_mismatch_default_bits.rs:14:1
+   |
+14 | #[typedflake(epoch = "2025-01-01", node = EightBitNode)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

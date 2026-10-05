@@ -1,0 +1,17 @@
+[package]
+name = "axum-sqlx"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+typedflake = { workspace = true, features = ["serde", "sqlx-postgres"] }
+axum = "0.8"
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "derive"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+serde_json.workspace = true
+tower = { version = "0.5", features = ["util"] }
