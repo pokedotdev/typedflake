@@ -5,7 +5,7 @@
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::DeriveInput;
+use syn::{DeriveInput, Ident};
 
 use crate::util::{self, Repr};
 
@@ -36,12 +36,32 @@ fn require_signed(input: &DeriveInput, derive: &str) -> syn::Result<()> {
 }
 
 pub fn serde(input: &DeriveInput) -> syn::Result<TokenStream> {
-    require_feature(cfg!(feature = "serde"), "Serde", "serde")?;
-    util::id_field(input, "`typedflake::Serde`")?;
+    serde_impls(input, "Serde", "serialize", "deserialize")
+}
+
+pub fn serde_encoded(input: &DeriveInput) -> syn::Result<TokenStream> {
+    serde_impls(
+        input,
+        "SerdeEncoded",
+        "serialize_encoded",
+        "deserialize_encoded",
+    )
+}
+
+fn serde_impls(
+    input: &DeriveInput,
+    derive: &str,
+    serialize: &str,
+    deserialize: &str,
+) -> syn::Result<TokenStream> {
+    require_feature(cfg!(feature = "serde"), derive, "serde")?;
+    util::id_field(input, &format!("`typedflake::{derive}`"))?;
 
     let tf = util::crate_path();
     let serde = quote!(#tf::__private::serde);
     let name = &input.ident;
+    let serialize = Ident::new(serialize, Span::call_site());
+    let deserialize = Ident::new(deserialize, Span::call_site());
 
     Ok(quote! {
         impl #serde::Serialize for #name {
@@ -49,7 +69,7 @@ pub fn serde(input: &DeriveInput) -> syn::Result<TokenStream> {
                 &self,
                 serializer: S,
             ) -> ::core::result::Result<S::Ok, S::Error> {
-                #serde::serialize(self, serializer)
+                #serde::#serialize(self, serializer)
             }
         }
 
@@ -57,7 +77,7 @@ pub fn serde(input: &DeriveInput) -> syn::Result<TokenStream> {
             fn deserialize<D: #serde::Deserializer<'de>>(
                 deserializer: D,
             ) -> ::core::result::Result<Self, D::Error> {
-                #serde::deserialize(deserializer)
+                #serde::#deserialize(deserializer)
             }
         }
     })

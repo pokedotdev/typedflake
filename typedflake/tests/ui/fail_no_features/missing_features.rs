@@ -4,6 +4,10 @@ use typedflake::typedflake;
 #[derive(typedflake::Serde)]
 struct SerdeId(i64);
 
+#[typedflake(epoch = "2025-01-01", alphabet = typedflake::Alphabet::BASE62)]
+#[derive(typedflake::SerdeEncoded)]
+struct SerdeEncodedId(i64);
+
 #[typedflake(epoch = "2025-01-01")]
 #[derive(typedflake::SqlxPostgres)]
 struct SqlxId(i64);

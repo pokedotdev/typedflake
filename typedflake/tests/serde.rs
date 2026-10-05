@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-use typedflake::typedflake;
+use typedflake::{Alphabet, typedflake};
 
 #[typedflake(epoch = "2025-01-01")]
 #[derive(typedflake::Serde)]
@@ -16,6 +16,18 @@ pub struct WideId(u64);
 #[typedflake(epoch = "2025-01-01", bits(timestamp = 32, node = 5, sequence = 8))]
 #[derive(typedflake::Serde)]
 pub struct ReducedId(i64);
+
+#[typedflake(epoch = "2025-01-01", alphabet = Alphabet::BASE62)]
+#[derive(typedflake::SerdeEncoded)]
+pub struct LinkId(i64);
+
+#[typedflake(
+    epoch = "2025-01-01",
+    bits(timestamp = 32, node = 5, sequence = 8),
+    alphabet = Alphabet::BASE36,
+)]
+#[derive(typedflake::SerdeEncoded)]
+pub struct ReducedLinkId(i64);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct User {
@@ -117,4 +129,55 @@ fn deserialization_needs_no_initialization() {
         UserId::generate(),
         Err(typedflake::GenerateError::NotInitialized { .. })
     ));
+}
+
+#[test]
+fn encoded_ids_serialize_as_their_encoded_text() {
+    let id = LinkId::try_from(232_900_560_974_681_078_i64).unwrap();
+    assert_eq!(serde_json::to_string(&id).unwrap(), r#""0HCgayuFvMs""#);
+    assert_eq!(
+        serde_json::from_str::<LinkId>(r#""0HCgayuFvMs""#).unwrap(),
+        id
+    );
+
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct Link {
+        id: LinkId,
+        previous: Option<LinkId>,
+        by_id: BTreeMap<LinkId, u8>,
+    }
+    let link = Link {
+        id,
+        previous: None,
+        by_id: BTreeMap::from([(id, 1)]),
+    };
+    let json = serde_json::to_string(&link).unwrap();
+    assert_eq!(
+        json,
+        r#"{"id":"0HCgayuFvMs","previous":null,"by_id":{"0HCgayuFvMs":1}}"#
+    );
+    assert_eq!(serde_json::from_str::<Link>(&json).unwrap(), link);
+
+    let bytes = bincode::serialize(&id).unwrap();
+    assert_eq!(bincode::deserialize::<LinkId>(&bytes).unwrap(), id);
+}
+
+#[test]
+fn encoded_ids_deserialize_only_from_their_encoded_text() {
+    // An integer, and a decimal string of another length.
+    assert!(serde_json::from_str::<LinkId>("232900560974681078").is_err());
+    let error = serde_json::from_str::<LinkId>(r#""232900560974681078""#).unwrap_err();
+    assert!(error.to_string().contains("this ID type uses 11"));
+
+    // Eleven digits are valid text in the alphabet: they decode as base 62,
+    // not as the decimal number.
+    let id: LinkId = serde_json::from_str(r#""00000000010""#).unwrap();
+    assert_eq!(id.get(), 62);
+
+    let error = serde_json::from_str::<LinkId>(r#""0HCga-uFvMs""#).unwrap_err();
+    assert!(error.to_string().contains("not in the ID's alphabet"));
+
+    // Reserved bits of a reduced format are reported by their cause.
+    let error = serde_json::from_str::<ReducedLinkId>(r#""zzzzzzzzz""#).unwrap_err();
+    assert!(error.to_string().contains("reserved bits"));
 }

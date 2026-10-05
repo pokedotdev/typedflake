@@ -91,6 +91,21 @@ pub fn derive_serde(input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Implements Serde's `Serialize` and `Deserialize` for an ID type, using its
+/// encoded text.
+///
+/// IDs serialize as `encode()` writes them and deserialize only from that
+/// exact text, with the same validation as `decode()`. The ID type needs the
+/// `alphabet` option. Use this or `Serde` on a type, not both. Requires the
+/// `serde` feature.
+#[proc_macro_derive(SerdeEncoded)]
+pub fn derive_serde_encoded(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    integrations::serde_encoded(&input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
 /// Implements SQLx's PostgreSQL `Type`, `Encode`, `Decode`, and array support
 /// for an `i64` ID type, stored as `BIGINT`.
 ///

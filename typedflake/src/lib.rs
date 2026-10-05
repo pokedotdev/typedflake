@@ -37,7 +37,7 @@
 //!
 //! | Feature | Enables |
 //! | --- | --- |
-//! | `serde` | [`Serde`](macro@Serde) derive |
+//! | `serde` | [`Serde`](macro@Serde) and [`SerdeEncoded`](macro@SerdeEncoded) derives |
 //! | `sqlx-postgres` | [`SqlxPostgres`](macro@SqlxPostgres) derive |
 //! | `postgres` | [`Postgres`](macro@Postgres) derive for `postgres-types` |
 //! | `tokio` | `generate_async` methods |
@@ -67,7 +67,7 @@ pub use generator::{GenerateError, Generator, GeneratorError};
 pub use global::{InitError, init};
 pub use id::{Id, InvalidId, ParseIdError, Parts, Repr, TimestampError};
 pub use node::{Node, NodeError};
-pub use typedflake_macros::{Postgres, Serde, SqlxPostgres, TypedNode, typedflake};
+pub use typedflake_macros::{Postgres, Serde, SerdeEncoded, SqlxPostgres, TypedNode, typedflake};
 
 /// Support for generated code. Not part of the public interface.
 #[doc(hidden)]

@@ -283,7 +283,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - **Fixed length.** Every ID of a type encodes to the same number of characters.
 - **One text per ID.** `decode()` only accepts exactly what `encode()` writes.
-- **Only for text.** `to_string()`, Serde, and the database keep using the number.
+- **Only for text.** `to_string()` and the database keep using the number. So does Serde, unless you derive [`SerdeEncoded`](#serde).
 
 ### Built-in alphabets
 
@@ -320,7 +320,8 @@ Each integration is a Cargo feature plus a derive on the IDs that need it:
 
 | Derive | Feature | For |
 | --- | --- | --- |
-| `typedflake::Serde` | `serde` | Serde |
+| `typedflake::Serde` | `serde` | Serde, as the decimal number |
+| `typedflake::SerdeEncoded` | `serde` | Serde, as the [encoded text](#encoding-ids-as-text) |
 | `typedflake::SqlxPostgres` | `sqlx-postgres` | SQLx 0.8 with PostgreSQL |
 | `typedflake::Postgres` | `postgres` | `postgres-types` 0.2 (`tokio-postgres`, `postgres`) |
 
@@ -362,6 +363,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 IDs are written as strings because JavaScript and many JSON parsers lose precision on large numbers.
+
+To write the encoded text instead, give the type an alphabet and derive `typedflake::SerdeEncoded`:
+
+```rust
+use typedflake::{Alphabet, typedflake};
+
+#[typedflake(epoch = "2025-01-01", alphabet = Alphabet::BASE62)]
+#[derive(typedflake::SerdeEncoded)]
+pub struct UserId(i64);
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let id = UserId::try_from(232_900_560_974_681_078_i64)?;
+    assert_eq!(serde_json::to_string(&id)?, r#""0HCgayuFvMs""#);
+
+    let same: UserId = serde_json::from_str(r#""0HCgayuFvMs""#)?;
+    assert_eq!(same, id);
+    Ok(())
+}
+```
+
+A type uses one derive or the other. `SerdeEncoded` reads only the encoded text, not integers or decimal strings, so switching an existing type to it changes what your clients must send.
 
 ### SQLx
 

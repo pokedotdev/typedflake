@@ -1,4 +1,5 @@
-//! Serde support: decimal strings out, strings or integers in.
+//! Serde support: decimal strings out and strings or integers in, or the
+//! encoded text both ways.
 
 use core::fmt;
 use core::marker::PhantomData;
@@ -6,6 +7,7 @@ use core::marker::PhantomData;
 use ::serde::de::{Error, Visitor};
 pub use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::encoding::{DecodeIdError, EncodedId};
 use crate::id::{self, Id, ParseIdError};
 
 /// Serializes an ID as a decimal string, so it survives formats whose numbers
@@ -48,5 +50,39 @@ impl<I: Id> Visitor<'_> for IdVisitor<I> {
 
     fn visit_i64<E: Error>(self, value: i64) -> Result<I, E> {
         id::from_i64(value).map_err(E::custom)
+    }
+}
+
+/// Serializes an ID as its encoded text.
+pub fn serialize_encoded<I: EncodedId, S: Serializer>(
+    id: &I,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(id.encode().as_str())
+}
+
+/// Deserializes an ID from its encoded text only. A decimal string can also
+/// be valid text in the alphabet, for a different ID, so accepting both would
+/// be ambiguous.
+pub fn deserialize_encoded<'de, I: EncodedId, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<I, D::Error> {
+    deserializer.deserialize_str(EncodedVisitor(PhantomData))
+}
+
+struct EncodedVisitor<I>(PhantomData<I>);
+
+impl<I: EncodedId> Visitor<'_> for EncodedVisitor<I> {
+    type Value = I;
+
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("an ID encoded in its alphabet")
+    }
+
+    fn visit_str<E: Error>(self, value: &str) -> Result<I, E> {
+        I::decode(value).map_err(|error| match error {
+            DecodeIdError::Invalid(error) => E::custom(error),
+            error => E::custom(error),
+        })
     }
 }

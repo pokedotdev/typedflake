@@ -188,6 +188,11 @@ fn ascii_str(bytes: &[u8]) -> &str {
 ///
 /// Its methods are also generated as inherent methods, so the trait only needs
 /// importing for code that is generic over ID types.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` has no alphabet",
+    label = "this ID type cannot be encoded",
+    note = "add `alphabet = ...` to its `#[typedflake(...)]` attribute"
+)]
 pub trait EncodedId: Id {
     /// Alphabet this ID type is written with.
     const ALPHABET: Alphabet;
