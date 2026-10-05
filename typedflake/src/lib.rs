@@ -72,7 +72,7 @@ pub use typedflake_macros::{Postgres, Serde, SqlxPostgres, TypedNode, typedflake
 pub mod __private {
     pub use std::sync::OnceLock;
 
-    pub use crate::format::{Layout, default_bits};
+    pub use crate::format::{Layout, default_bits, format_error_message};
     pub use crate::id::{from_i64, from_u64, parse};
     pub use crate::node::pack_field;
 
@@ -99,3 +99,40 @@ struct ReadmeDoctests;
 #[cfg(doctest)]
 #[doc = include_str!("../../MIGRATION.md")]
 struct MigrationDoctests;
+
+/// Rejections whose compiler output depends on whether the standard library's
+/// sources are installed, so they are checked here instead of in `tests/ui`.
+///
+/// IDs have no arithmetic:
+///
+/// ```compile_fail
+/// use typedflake::typedflake;
+///
+/// #[typedflake(epoch = "2025-01-01")]
+/// struct UserId(i64);
+///
+/// let id = UserId::try_from(1_i64).unwrap();
+/// let next = id + 1;
+/// ```
+///
+/// A date that does not exist fails a const epoch:
+///
+/// ```compile_fail
+/// const EPOCH: typedflake::Epoch = typedflake::Epoch::from_date(2025, 2, 30);
+/// ```
+///
+/// The same declarations compile once corrected:
+///
+/// ```
+/// use typedflake::typedflake;
+///
+/// #[typedflake(epoch = "2025-01-01")]
+/// struct UserId(i64);
+///
+/// let id = UserId::try_from(1_i64).unwrap();
+/// let next = id.get() + 1;
+/// const EPOCH: typedflake::Epoch = typedflake::Epoch::from_date(2025, 2, 28);
+/// # let _ = (next, EPOCH);
+/// ```
+#[cfg(doctest)]
+struct CompileFailDoctests;

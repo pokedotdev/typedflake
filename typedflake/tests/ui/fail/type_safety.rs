@@ -36,8 +36,7 @@ fn main() {
     let _ = UserId(1);
     let _: UserId = 1_i64.into();
 
-    // No arithmetic or dereferencing.
-    let _ = order + 1;
+    // No dereferencing to the integer.
     let _ = *order;
 
     // A typed-node ID takes its declared node, not a packed integer.

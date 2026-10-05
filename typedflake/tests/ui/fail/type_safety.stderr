@@ -37,6 +37,12 @@ help: consider making the field publicly accessible
 15 |     pub struct UserId(pub i64);
    |                       +++
 
+error[E0614]: type `ids::OrderId` cannot be dereferenced
+  --> tests/ui/fail/type_safety.rs:40:13
+   |
+40 |     let _ = *order;
+   |             ^^^^^^ can't be dereferenced
+
 error[E0277]: the trait bound `ids::UserId: From<i64>` is not satisfied
   --> tests/ui/fail/type_safety.rs:37:27
    |
@@ -51,36 +57,10 @@ help: the trait `From<i64>` is not implemented for `ids::UserId`
    = note: required for `i64` to implement `Into<ids::UserId>`
    = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0369]: cannot add `{integer}` to `ids::OrderId`
-  --> tests/ui/fail/type_safety.rs:40:19
-   |
-40 |     let _ = order + 1;
-   |             ----- ^ - {integer}
-   |             |
-   |             ids::OrderId
-   |
-note: an implementation of `Add<{integer}>` might be missing for `ids::OrderId`
-  --> tests/ui/fail/type_safety.rs:17:5
-   |
-17 |     #[typedflake(epoch = "2025-01-01")]
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ must implement `Add<{integer}>`
-note: the trait `Add` must be implemented
-  --> $RUST/core/src/ops/arith.rs
-   |
-   | pub const trait Add<Rhs = Self> {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0614]: type `ids::OrderId` cannot be dereferenced
-  --> tests/ui/fail/type_safety.rs:41:13
-   |
-41 |     let _ = *order;
-   |             ^^^^^^ can't be dereferenced
-
 error[E0308]: mismatched types
-  --> tests/ui/fail/type_safety.rs:44:32
+  --> tests/ui/fail/type_safety.rs:43:32
    |
-44 |     let _ = TypedId::generator(17);
+43 |     let _ = TypedId::generator(17);
    |             ------------------ ^^ expected `AppNode`, found integer
    |             |
    |             arguments to this function are incorrect
@@ -93,15 +73,15 @@ note: associated function defined here
    = note: this error originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0308]: mismatched types
-  --> tests/ui/fail/type_safety.rs:45:31
+  --> tests/ui/fail/type_safety.rs:44:31
    |
-45 |       let _ = UserId::generator(AppNode {
+44 |       let _ = UserId::generator(AppNode {
    |  _____________-----------------_^
    | |             |
    | |             arguments to this function are incorrect
-46 | |         worker: 1,
-47 | |         process: 1,
-48 | |     });
+45 | |         worker: 1,
+46 | |         process: 1,
+47 | |     });
    | |_____^ expected `u32`, found `AppNode`
    |
 note: associated function defined here

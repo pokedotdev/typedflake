@@ -294,6 +294,18 @@ pub const fn default_bits<R: Repr>() -> BitLayout {
     }
 }
 
+/// Why `format` cannot be used with this integer and node type, if it cannot.
+///
+/// ID declarations panic with this message directly in their own const, so the
+/// compile error points at the declaration and shows no internal frames.
+#[doc(hidden)]
+pub const fn format_error_message<R: Repr, N: Node>(format: &Format) -> Option<&'static str> {
+    match format.validate::<R, N>() {
+        Ok(()) => None,
+        Err(error) => Some(error.message()),
+    }
+}
+
 pub(crate) const fn low_mask(bits: u8) -> u64 {
     if bits >= 64 {
         u64::MAX

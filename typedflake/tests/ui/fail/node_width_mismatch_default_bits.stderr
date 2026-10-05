@@ -1,24 +1,5 @@
 error[E0080]: evaluation panicked: typedflake: node type width does not match the format's node bits
- --> src/id.rs
-  |
-  |     const __LAYOUT: Layout = Layout::resolve::<Self::Repr, Self::Node>(Self::FORMAT);
-  |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `<DefaultBits as typedflake::Id>::__LAYOUT` failed inside this call
-  |
-note: inside `typedflake::__private::Layout::resolve::<i64, EightBitNode>`
- --> $RUST/core/src/panic.rs
-  |
-  |         $crate::panicking::panic_display(&$arg);
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
-  |
- ::: src/format.rs
-  |
-  |             panic!("{}", error.message());
-  |             ----------------------------- in this macro invocation
-
-note: erroneous constant encountered
   --> tests/ui/fail/node_width_mismatch_default_bits.rs:14:1
    |
 14 | #[typedflake(epoch = "2025-01-01", node = EightBitNode)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |
-   = note: this note originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

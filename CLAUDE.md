@@ -82,7 +82,7 @@ docker run -d --rm --name typedflake-test-pg -e POSTGRES_PASSWORD=postgres \
 export TYPEDFLAKE_TEST_POSTGRES_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres
 ```
 
-UI tests (`tests/ui/`) pin compiler diagnostics for Rust 1.99. Regenerate them with `TRYBUILD=overwrite cargo test -p typedflake --test ui`, once without features and once with `--all-features`. Set `TYPEDFLAKE_SKIP_UI=1` to skip them on another compiler.
+UI tests (`tests/ui/`) pin compiler diagnostics for Rust 1.99. Keep cases whose output quotes standard library sources out of them (that output depends on `rust-src` being installed); use `compile_fail` doctests in `lib.rs` for those. Regenerate them with `TRYBUILD=overwrite cargo test -p typedflake --test ui`, once without features and once with `--all-features`. Set `TYPEDFLAKE_SKIP_UI=1` to skip them on another compiler.
 
 ### Examples and Benchmarks
 
@@ -101,7 +101,7 @@ Each ID is a newtype declared with `#[typedflake(...)]`. The attribute implement
 
 ### Runtime (`typedflake`)
 
-**`format.rs`** - The persistent format. `Epoch`, `BitLayout`, and `Format` are plain copyable data. `Format::validate` is a const fn; `Layout::resolve` turns a valid format into precomputed shifts and limits and panics on an invalid one. Because `Id::__LAYOUT` is a const, that panic is a compile error at the ID declaration.
+**`format.rs`** - The persistent format. `Epoch`, `BitLayout`, and `Format` are plain copyable data. `Format::validate` is a const fn; `Layout::resolve` turns a valid format into precomputed shifts and limits. Each ID declaration checks its format in a const of its own and panics there with the reason, so an invalid format is a compile error that points at the declaration.
 
 **`node.rs`** - The `Node` trait. `u32` is the plain node and the only integer one, which lets `init(17)` infer its type. `TypedNode` structs implement it with a fixed width. Nodes are validated when consumed, never truncated.
 

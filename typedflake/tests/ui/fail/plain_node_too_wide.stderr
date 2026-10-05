@@ -1,24 +1,5 @@
 error[E0080]: evaluation panicked: typedflake: a plain `u32` node supports at most 32 node bits
- --> src/id.rs
-  |
-  |     const __LAYOUT: Layout = Layout::resolve::<Self::Repr, Self::Node>(Self::FORMAT);
-  |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `<UserId as typedflake::Id>::__LAYOUT` failed inside this call
-  |
-note: inside `typedflake::__private::Layout::resolve::<i64, u32>`
- --> $RUST/core/src/panic.rs
-  |
-  |         $crate::panicking::panic_display(&$arg);
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
-  |
- ::: src/format.rs
-  |
-  |             panic!("{}", error.message());
-  |             ----------------------------- in this macro invocation
-
-note: erroneous constant encountered
  --> tests/ui/fail/plain_node_too_wide.rs:3:1
   |
 3 | #[typedflake(epoch = "2025-01-01", bits(timestamp = 20, node = 33, sequence = 10))]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: this note originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

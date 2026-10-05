@@ -1,24 +1,5 @@
 error[E0080]: evaluation panicked: typedflake: bit widths exceed the 63 usable bits of `i64`
- --> src/id.rs
-  |
-  |     const __LAYOUT: Layout = Layout::resolve::<Self::Repr, Self::Node>(Self::FORMAT);
-  |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `<DoesNotFit as typedflake::Id>::__LAYOUT` failed inside this call
-  |
-note: inside `typedflake::__private::Layout::resolve::<i64, u32>`
- --> $RUST/core/src/panic.rs
-  |
-  |         $crate::panicking::panic_display(&$arg);
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
-  |
- ::: src/format.rs
-  |
-  |             panic!("{}", error.message());
-  |             ----------------------------- in this macro invocation
-
-note: erroneous constant encountered
   --> tests/ui/fail/shared_format_too_wide.rs:15:1
    |
 15 | #[typedflake(format = WIDE)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |
-   = note: this note originates in the attribute macro `typedflake` (in Nightly builds, run with -Z macro-backtrace for more info)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

@@ -391,9 +391,16 @@ fn generate(input: &DeriveInput, field_ty: &Type, repr: Repr, args: &Args) -> To
         #vis struct #name(#field_ty);
 
         // Validates the format against the integer and node type at the
-        // declaration, instead of at the first use.
+        // declaration, instead of at the first use. Panicking here, not in a
+        // called function, keeps the compile error pointed at this item.
         const _: () = {
-            let _ = <#name as #tf::Id>::__LAYOUT;
+            if let ::core::option::Option::Some(message) =
+                #tf::__private::format_error_message::<#repr_ty, #node_ty>(
+                    &<#name as #tf::Id>::FORMAT,
+                )
+            {
+                ::core::panic!("{}", message);
+            }
         };
 
         impl #tf::Id for #name {
