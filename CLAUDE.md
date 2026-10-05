@@ -25,7 +25,7 @@ typedflake/                          # repo root (virtual workspace)
 │   │   ├── id.rs                    # Id and Repr traits, Parts, value errors
 │   │   ├── state.rs                 # atomic state and its registry
 │   │   ├── generator.rs             # Generator, generation errors
-│   │   ├── global.rs                # init and the default node
+│   │   ├── global.rs                # init and the default nodes
 │   │   ├── clock.rs                 # clock seam
 │   │   └── integrations/            # serde, sqlx_postgres, postgres
 │   ├── tests/                       # integration and UI tests
@@ -61,6 +61,7 @@ cargo test -p typedflake --all-targets
 cargo test -p typedflake --test values
 cargo test -p typedflake --test generation
 cargo test -p typedflake --test init_simple
+cargo test -p typedflake --test init_mixed
 cargo test -p typedflake --test ui
 cargo test -p typedflake --test serde --features serde
 
@@ -111,7 +112,7 @@ Each ID is a newtype declared with `#[typedflake(...)]`. The attribute implement
 
 **`generator.rs`** - `Generator<I>` holds an `Arc<State>` and the pre-shifted node. `generate` never waits; `generate_blocking` and `generate_async` retry sequence exhaustion only. `default_generator` resolves and caches the generator behind the static `Id::generate()`.
 
-**`global.rs`** - `init` stores the default node as a typed value, so an ID can only use it when its node type matches.
+**`global.rs`** - `init` stores one default per node type, keyed by the type, so an ID only receives a node of its own node type.
 
 **`clock.rs`** - Wall-clock access. In unit tests a thread-local mock freezes it; there is no public clock abstraction.
 

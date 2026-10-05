@@ -138,8 +138,8 @@ impl<I: Id> fmt::Debug for Generator<I> {
 }
 
 /// Returns the generator behind `I::generate()`, resolving it from the global
-/// default node on first use. A failure leaves it unresolved, so generating
-/// before [`init`](crate::init) does not freeze anything.
+/// default node of its type on first use. A failure leaves it unresolved, so
+/// generating before [`init`](crate::init) does not freeze anything.
 pub(crate) fn default_generator<I: Id>() -> Result<&'static Generator<I>, GenerateError> {
     let cell = I::__default_generator();
     if let Some(generator) = cell.get() {
@@ -179,15 +179,11 @@ impl std::error::Error for GeneratorError {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum GenerateError {
-    /// [`init`](crate::init) has not been called.
-    NotInitialized,
-    /// The default node installed by [`init`](crate::init) is of a different
-    /// node type than this ID expects.
-    NodeSchemaMismatch {
-        /// Node type of the ID.
-        expected: &'static str,
-        /// Node type passed to `init`.
-        found: &'static str,
+    /// [`init`](crate::init) has not been called with a node of the type this
+    /// ID uses.
+    NotInitialized {
+        /// Node type of the ID: `u32`, or its `TypedNode` struct.
+        node: &'static str,
     },
     /// The default node does not fit this ID's format.
     DefaultGenerator(GeneratorError),
@@ -218,12 +214,9 @@ pub enum GenerateError {
 impl fmt::Display for GenerateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotInitialized => {
-                f.write_str("no default node: call `typedflake::init` during startup")
-            }
-            Self::NodeSchemaMismatch { expected, found } => write!(
+            Self::NotInitialized { node } => write!(
                 f,
-                "default node is `{found}`, but this ID expects a `{expected}` node"
+                "no default `{node}` node: call `typedflake::init` with one during startup"
             ),
             Self::DefaultGenerator(_) => f.write_str("default node is not valid for this ID"),
             Self::Clock(_) => f.write_str("system clock could not be read"),

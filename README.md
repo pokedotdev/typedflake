@@ -157,9 +157,43 @@ Node values are checked when they are used: a number or field too large for its 
 
 ### The default node
 
-`typedflake::init(node)` installs the node used by every `Id::generate()` call. Call it once at startup; a second call returns `InitError::AlreadyInitialized`, and generating before it returns `GenerateError::NotInitialized`.
+`typedflake::init(node)` installs the node used by `Id::generate()`. Call it once at startup; a second call returns `InitError::AlreadyInitialized`, and generating before it returns `GenerateError::NotInitialized`.
 
-One default serves all ID types with the same kind of node. An ID declared with a different node type reports a mismatch instead of silently using it; give that ID an explicit generator.
+There is one default per kind of node. If some IDs use a plain number and others a `TypedNode` struct, call `init` once for each:
+
+```rust
+use typedflake::{TypedNode, typedflake};
+
+#[derive(Debug, Clone, Copy, TypedNode)]
+pub struct AppNode {
+    #[node(bits = 5)]
+    pub worker: u8,
+    #[node(bits = 5)]
+    pub process: u8,
+}
+
+#[typedflake(epoch = "2025-01-01")]
+pub struct UserId(i64);
+
+#[typedflake(epoch = "2025-01-01", node = AppNode)]
+pub struct OrderId(i64);
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    typedflake::init(17)?;
+    typedflake::init(AppNode {
+        worker: 17,
+        process: 1,
+    })?;
+
+    let user_id = UserId::generate()?;
+    let order_id = OrderId::generate()?;
+    Ok(())
+}
+```
+
+An ID only ever receives a node of its own node type. One whose type has no default reports `NotInitialized` with the type that is missing; it never borrows another type's node, even at the same width.
+
+IDs that share a node type can still differ in node bits. Each checks the default against its own width the first time it generates, so a number too large for one ID fails for that ID only.
 
 In tests, where many tests share a process, ignore the repeat error: `let _ = typedflake::init(0);`.
 

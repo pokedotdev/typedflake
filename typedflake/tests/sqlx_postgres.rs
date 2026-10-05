@@ -25,10 +25,11 @@ struct User {
 }
 
 async fn connect() -> Option<PgPool> {
-    let Ok(url) = std::env::var("TYPEDFLAKE_TEST_POSTGRES_URL") else {
+    let url = std::env::var("TYPEDFLAKE_TEST_POSTGRES_URL").unwrap_or_default();
+    if url.is_empty() {
         eprintln!("skipped: TYPEDFLAKE_TEST_POSTGRES_URL is not set");
         return None;
-    };
+    }
     // Temporary tables belong to one session, so the pool holds one connection.
     let pool = PgPoolOptions::new()
         .max_connections(1)

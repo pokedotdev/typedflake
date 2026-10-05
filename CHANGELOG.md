@@ -21,7 +21,7 @@ move from 0.1 and keep reading existing IDs.
 - Formats that use fewer bits than the integer holds; the unused upper bits are reserved and validated.
 - `Format` and `BitLayout` as plain struct constants, validated at compile time against each ID type.
 - `TypedNode` derive for splitting the node into named fields.
-- `typedflake::init(node)` for installing the default node once.
+- `typedflake::init(node)` for installing a default node, once per node type.
 - `Generator<Id>`, obtained from `Id::generator(node)`; generators for one ID type and node always share state.
 - `generate_blocking(timeout)` and, with the `tokio` feature, `generate_async()`.
 - `Parts`, `parts()`, `from_parts()`, and `unix_millis()` for inspecting and rebuilding IDs.

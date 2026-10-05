@@ -108,10 +108,11 @@ mod tests {
     /// Needs a database: set `TYPEDFLAKE_TEST_POSTGRES_URL` to run it.
     #[tokio::test]
     async fn creates_and_fetches_a_user_over_http() {
-        let Ok(url) = std::env::var("TYPEDFLAKE_TEST_POSTGRES_URL") else {
+        let url = std::env::var("TYPEDFLAKE_TEST_POSTGRES_URL").unwrap_or_default();
+        if url.is_empty() {
             eprintln!("skipped: TYPEDFLAKE_TEST_POSTGRES_URL is not set");
             return;
-        };
+        }
         let _ = typedflake::init(1);
 
         // One connection, so the temporary table is visible to every query.

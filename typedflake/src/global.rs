@@ -1,38 +1,51 @@
-//! Process-wide default node.
+//! Process-wide default nodes.
 
-use core::any::{Any, type_name};
+use core::any::{Any, TypeId, type_name};
 use core::fmt;
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::sync::{Mutex, PoisonError};
 
 use crate::generator::GenerateError;
 use crate::node::{Node, NodeError};
 
-/// The default keeps the node value itself, so an ID can only use it when its
-/// node type is the same type, not merely the same width.
-struct DefaultNode {
-    node: Box<dyn Any + Send + Sync>,
-    type_name: &'static str,
-}
+/// One default per node type. Keeping the node value under its own type means
+/// an ID can only receive a node of its declared type, not merely one of the
+/// same width.
+type Defaults = HashMap<TypeId, Box<dyn Any + Send + Sync>>;
 
-static DEFAULT: OnceLock<DefaultNode> = OnceLock::new();
+static DEFAULTS: Mutex<Option<Defaults>> = Mutex::new(None);
 
-/// Installs the node used by the static `generate` methods of every ID type.
+/// Installs the node used by the static `generate` methods of every ID type
+/// with this kind of node.
 ///
-/// Call it once during startup, with a plain node number or a
-/// [`TypedNode`](macro@crate::TypedNode) struct. Explicit generators from
-/// [`Id::generator`](crate::Id::generator) and all parsing, conversion, and
-/// inspection work without it.
+/// Call it during startup, once for each node type in use: a plain node
+/// number, and any [`TypedNode`](macro@crate::TypedNode) struct. Explicit
+/// generators from [`Id::generator`](crate::Id::generator) and all parsing,
+/// conversion, and inspection work without it.
 ///
 /// ```
-/// use typedflake::typedflake;
+/// use typedflake::{TypedNode, typedflake};
+///
+/// #[derive(Debug, Clone, Copy, PartialEq, TypedNode)]
+/// pub struct AppNode {
+///     #[node(bits = 5)]
+///     pub worker: u8,
+///     #[node(bits = 5)]
+///     pub process: u8,
+/// }
 ///
 /// #[typedflake(epoch = "2025-01-01")]
 /// pub struct UserId(i64);
 ///
-/// typedflake::init(17)?;
+/// #[typedflake(epoch = "2025-01-01", node = AppNode)]
+/// pub struct OrderId(i64);
 ///
-/// let id = UserId::generate()?;
-/// assert_eq!(id.parts().node, 17);
+/// let app_node = AppNode { worker: 17, process: 1 };
+/// typedflake::init(17)?;
+/// typedflake::init(app_node)?;
+///
+/// assert_eq!(UserId::generate()?.parts().node, 17);
+/// assert_eq!(OrderId::generate()?.parts().node, app_node);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
@@ -41,40 +54,43 @@ static DEFAULT: OnceLock<DefaultNode> = OnceLock::new();
 ///
 /// # Errors
 ///
-/// Returns [`InitError::AlreadyInitialized`] on every call after the first.
-/// Tests that share a process can ignore it: `let _ = typedflake::init(0);`.
+/// Returns [`InitError::AlreadyInitialized`] if a node of the same type is
+/// already installed. Tests that share a process can ignore it:
+/// `let _ = typedflake::init(0);`.
 pub fn init<N: Node>(node: N) -> Result<(), InitError> {
     if let Some(bits) = N::BITS {
         node.pack(bits).map_err(InitError::InvalidNode)?;
     }
 
-    DEFAULT
-        .set(DefaultNode {
-            node: Box::new(node),
-            type_name: type_name::<N>(),
-        })
-        .map_err(|_| InitError::AlreadyInitialized)
+    // The map is never left half-updated, so a poisoned lock is still valid.
+    let mut defaults = DEFAULTS.lock().unwrap_or_else(PoisonError::into_inner);
+    let defaults = defaults.get_or_insert_default();
+    if defaults.contains_key(&TypeId::of::<N>()) {
+        return Err(InitError::AlreadyInitialized);
+    }
+    defaults.insert(TypeId::of::<N>(), Box::new(node));
+    Ok(())
 }
 
 pub(crate) fn default_node<N: Node>() -> Result<N, GenerateError> {
-    let default = DEFAULT.get().ok_or(GenerateError::NotInitialized)?;
-    default
-        .node
-        .downcast_ref::<N>()
+    let defaults = DEFAULTS.lock().unwrap_or_else(PoisonError::into_inner);
+    defaults
+        .as_ref()
+        .and_then(|defaults| defaults.get(&TypeId::of::<N>()))
+        .and_then(|node| node.downcast_ref::<N>())
         .copied()
-        .ok_or(GenerateError::NodeSchemaMismatch {
-            expected: type_name::<N>(),
-            found: default.type_name,
+        .ok_or(GenerateError::NotInitialized {
+            node: type_name::<N>(),
         })
 }
 
-/// The default node could not be installed.
+/// A default node could not be installed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum InitError {
     /// A typed node has a field that does not fit its width.
     InvalidNode(NodeError),
-    /// A default node is already installed.
+    /// A default node of this type is already installed.
     AlreadyInitialized,
 }
 
@@ -82,7 +98,9 @@ impl fmt::Display for InitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidNode(_) => f.write_str("default node is not valid"),
-            Self::AlreadyInitialized => f.write_str("default node is already initialized"),
+            Self::AlreadyInitialized => {
+                f.write_str("a default node of this type is already initialized")
+            }
         }
     }
 }

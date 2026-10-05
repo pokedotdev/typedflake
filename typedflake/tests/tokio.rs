@@ -58,7 +58,7 @@ async fn static_async_generation_reports_missing_initialization() {
     // This process never calls `typedflake::init`.
     assert!(matches!(
         UserId::generate_async().await,
-        Err(GenerateError::NotInitialized)
+        Err(GenerateError::NotInitialized { .. })
     ));
 }
 

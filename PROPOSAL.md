@@ -259,9 +259,18 @@ The derive validates field widths and the aggregate layout statically.
 with `1 <= N <=` the width of its type. The node type must be `Copy`.
 
 Global defaults retain node schema identity, not just packed bits. A type expecting
-one schema must not silently consume another schema with the same width. Multiple
-schemas in one process can initially use explicit generators instead of a more
-complex global registry of defaults.
+one schema must not silently consume another schema with the same width. There is
+one default per node type, so a process that mixes schemas calls `init` once for
+each and every ID keeps its static `generate()`:
+
+```rust
+typedflake::init(17)?;
+typedflake::init(AppNode {
+    worker: 17,
+    process: 1,
+})?;
+```
+
 Explicit generators for a structured-node ID accept that declared node type, not
 an arbitrary packed integer. Simple-node IDs accept a `u32` node. Defer a raw
 escape hatch for structured nodes until there is a concrete use case.
@@ -325,7 +334,7 @@ stand for that ID's declared integer and node type, not additional caller inputs
 
 | Entry point | Result | Contract |
 | --- | --- | --- |
-| `typedflake::init(node)` | `Result<(), InitError>` | Validate and install one schema-preserving default |
+| `typedflake::init(node)` | `Result<(), InitError>` | Validate and install the default for that node type |
 | `Id::generate()` | `Result<Id, GenerateError>` | Use the cached default; do not wait for capacity |
 | `Id::generator(node)` | `Result<Generator<Id>, GeneratorError>` | Validate expected node schema and share existing state |
 | `generator.generate()` | `Result<Id, GenerateError>` | Same generation engine without global defaults |
@@ -392,9 +401,13 @@ pub fn init<N: Node>(node: N) -> Result<(), InitError>;
 
 ### Initialization
 
-- Initialization is explicit and one-time; even node zero requires `init(0)`.
+- Initialization is explicit and one-time per node type; even node zero requires
+  `init(0)`.
 - Generating before initialization returns an error without freezing defaults.
-- A second initialization returns `AlreadyInitialized`.
+- A second initialization with the same node type returns `AlreadyInitialized`.
+  A different node type installs its own default.
+- An ID whose node type has no default reports which type is missing. It never
+  uses the default of another type.
 - Initialization validates the supplied node, but cannot enumerate every ID type
   in the program. Each generator also checks compatibility with its format.
 - A `u32` node has no width of its own, so `init` can only reject it as already
@@ -403,7 +416,7 @@ pub fn init<N: Node>(node: N) -> Result<(), InitError>;
 - Tests that exercise `Id::generate()` call `let _ = typedflake::init(0);` and
   ignore `AlreadyInitialized`. Isolated tests prefer `Id::generator(node)`, which
   needs no global state. No test-only initialization API is provided.
-- Schema mismatch and out-of-range defaults return errors, never delayed panics.
+- Missing and out-of-range defaults return errors, never delayed panics.
 - Reading or parsing existing IDs does not require initialization.
 
 ### Clock and capacity
@@ -652,9 +665,9 @@ is recorded in this document and its examples rather than made silently.
 | Reduced capacity | Allow unused high bits; validate them; keep examples conventional | Accepted |
 | Node contract | Named input fields, validation when consumed, declaration-order packing | Selected |
 | Node interpretation | Require typed-node width to equal the format's node width | Accepted |
-| Node defaults | Preserve schema identity; reject mismatch | Selected |
+| Node defaults | One default per node type; an ID never receives another type's node | Revised |
 | Node conversions | Typed generators take their declared node; raw typed-node escape hatch deferred | Selected |
-| Initialization | One default, explicit startup, repeat initialization errors | Selected |
+| Initialization | Explicit startup, once per node type; repeating a type errors | Revised |
 | Initialization in tests | Ignore `AlreadyInitialized` or use explicit generators; no test-only API | Accepted |
 | Clock behavior | Fail on rollback; retry only sequence exhaustion; recover without reset; read the clock after the state | Revised |
 | Waiting methods | Bounded sync wait and optional Tokio async wait without its own timeout | Revised |
@@ -766,9 +779,15 @@ found while writing the code and is recorded here instead of changed silently.
 - **Clock read order.** Reading the clock once per call, before the
   compare-and-swap loop, made concurrent callers report false rollbacks. The
   clock is now read after every load of the state (section 3).
-- **Schema identity.** The default node is stored as the node value and matched
-  by downcast, not as a `TypeId` next to packed bits. It is the same check with
-  less to keep in sync, and the node is repacked per ID type anyway.
+- **Schema identity.** Defaults are stored as node values keyed by their type,
+  not as a `TypeId` next to packed bits. It is the same check with less to keep
+  in sync, and the node is repacked per ID type anyway.
+- **One default per node type.** The first version held a single default, so a
+  process mixing node types could use the static `generate()` for only one of
+  them and needed explicit generators for the rest. The registry this avoided
+  turned out to be a small map consulted once per ID type, so each node type now
+  has its own default. `NodeSchemaMismatch` is gone: a missing default is
+  `NotInitialized` naming the node type.
 
 **Additions**
 
@@ -801,7 +820,7 @@ found while writing the code and is recorded here instead of changed silently.
   formats. A format that is not human-readable reads the string that was written.
 - **`GeneratorError`.** Only an invalid node can fail an explicit generator:
   the node type is checked by the compiler and the format by the declaration.
-  A mismatched default node is `GenerateError::NodeSchemaMismatch`.
+  A missing default for the ID's node type is `GenerateError::NotInitialized`.
 
 **Not done**
 

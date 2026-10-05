@@ -17,10 +17,11 @@ pub struct UserId(i64);
 pub struct ReducedId(i64);
 
 async fn connect() -> Option<Client> {
-    let Ok(url) = std::env::var("TYPEDFLAKE_TEST_POSTGRES_URL") else {
+    let url = std::env::var("TYPEDFLAKE_TEST_POSTGRES_URL").unwrap_or_default();
+    if url.is_empty() {
         eprintln!("skipped: TYPEDFLAKE_TEST_POSTGRES_URL is not set");
         return None;
-    };
+    }
     let (client, connection) = tokio_postgres::connect(&url, NoTls)
         .await
         .expect("failed to connect to the test database");

@@ -115,6 +115,6 @@ fn deserialization_needs_no_initialization() {
     assert!(serde_json::from_str::<UserId>("1").is_ok());
     assert!(matches!(
         UserId::generate(),
-        Err(typedflake::GenerateError::NotInitialized)
+        Err(typedflake::GenerateError::NotInitialized { .. })
     ));
 }

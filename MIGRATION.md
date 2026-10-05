@@ -13,7 +13,7 @@
 | `id!(UserId, CONFIG)` | `#[typedflake(format = CONSTANT)]` |
 | Worker and process fields | One node field: a `u32`, or a `TypedNode` struct with named fields |
 | `Config::TWITTER`, `Config::DISCORD`, and their layouts and epochs | Removed; declare the format yourself |
-| `global::set_defaults(config, worker, process)` | `typedflake::init(node)`; the format always belongs to the ID type |
+| `global::set_defaults(config, worker, process)` | `typedflake::init(node)`, once per node type; the format always belongs to the ID type |
 | `UserId::generate()` returns an ID and waits when needed | Returns `Result`; never waits |
 | | `generate_blocking(timeout)` and `generate_async()` wait for capacity |
 | `UserId::instance(w, p)`, `worker(w)`, `process(p)` | `UserId::generator(node)` returning `Generator<UserId>` |
