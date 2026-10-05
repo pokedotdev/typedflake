@@ -4,38 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Structure
 
-TypedFlake is a **3-crate Rust workspace** for Snowflake-style ID generation:
+TypedFlake is a **2-crate Rust workspace** for Snowflake-style ID generation:
 
-- **`typedflake/`** - Public API facade crate (re-exports core + derive macro)
-- **`typedflake-core/`** - Core runtime logic (config, context, generator, global, state)
-- **`typedflake-macros/`** - Proc-macro crate (`#[derive(TypedFlake)]`)
-- **`docs/`** - Additional documentation (newtype philosophy, etc.)
+- **`typedflake/`** - Runtime and public interface
+- **`typedflake-macros/`** - Proc-macro crate (`#[typedflake]`, `TypedNode`, integration derives)
+
+Two non-published members support it: `examples/axum-sqlx/` (an integration example) and `tests/renamed-dependency/` (checks generated paths when the dependency is renamed).
 
 ### Workspace Layout
 
 ```
 typedflake/                          # repo root (virtual workspace)
 ├── Cargo.toml                       # [workspace] manifest
-├── typedflake/                      # public API facade
+├── typedflake/                      # runtime and public interface
 │   ├── Cargo.toml
-│   ├── src/lib.rs                   # re-exports core + macros
-│   ├── tests/                       # integration tests
-│   ├── examples/                    # example programs
-│   └── benches/                     # performance benchmarks
-├── typedflake-core/                 # core runtime logic
-│   ├── Cargo.toml
+│   ├── src/
+│   │   ├── lib.rs                   # re-exports, `__private` for generated code
+│   │   ├── format.rs                # Epoch, BitLayout, Format, Layout
+│   │   ├── node.rs                  # Node trait, NodeError
+│   │   ├── id.rs                    # Id and Repr traits, Parts, value errors
+│   │   ├── state.rs                 # atomic state and its registry
+│   │   ├── generator.rs             # Generator, generation errors
+│   │   ├── global.rs                # init and the default node
+│   │   ├── clock.rs                 # clock seam
+│   │   └── integrations/            # serde, sqlx_postgres, postgres
+│   ├── tests/                       # integration and UI tests
+│   ├── examples/
+│   └── benches/
+├── typedflake-macros/
 │   └── src/
-│       ├── lib.rs
-│       ├── config.rs
-│       ├── context.rs
-│       ├── generator.rs
-│       ├── global.rs
-│       └── state.rs
-├── typedflake-macros/               # proc-macro crate
-│   ├── Cargo.toml
-│   └── src/lib.rs
-├── docs/
-├── CLAUDE.md
+│       ├── lib.rs                   # macro entry points and their docs
+│       ├── id.rs                    # #[typedflake]
+│       ├── node.rs                  # TypedNode
+│       ├── integrations.rs          # Serde, SqlxPostgres, Postgres
+│       └── util.rs
+├── examples/axum-sqlx/
+├── tests/renamed-dependency/
+├── MIGRATION.md
+├── PROPOSAL.md                      # design record for the 0.2 redesign
 └── README.md
 ```
 
@@ -44,28 +50,22 @@ typedflake/                          # repo root (virtual workspace)
 ### Building and Testing
 
 ```bash
-# Run all tests (unit tests + doctests + integration tests)
-cargo test --workspace --all-targets
-cargo test --workspace --doc
-
-# Run with serde feature
+# Run all tests with every integration enabled
 cargo test --workspace --all-targets --all-features
+cargo test --workspace --doc --all-features
 
-# Run specific test file
-cargo test -p typedflake --test integration
-cargo test -p typedflake --test concurrency
-cargo test -p typedflake --test validation
-cargo test -p typedflake --test derive
+# Run the core tests without optional features
+cargo test -p typedflake --all-targets
+
+# Run a specific test file
+cargo test -p typedflake --test values
+cargo test -p typedflake --test generation
+cargo test -p typedflake --test init_simple
+cargo test -p typedflake --test ui
 cargo test -p typedflake --test serde --features serde
 
-# Run specific test module in core
-cargo test -p typedflake-core config::tests
-
-# Build the workspace
-cargo build --workspace
-
-# Check for errors without building
-cargo check --workspace
+# Run a specific unit test module
+cargo test -p typedflake --lib state::tests
 
 # Check for linting issues
 cargo clippy --workspace --all-targets --all-features -- -D warnings
@@ -74,130 +74,63 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all
 ```
 
-### Examples
+Database round-trip tests are skipped unless `TYPEDFLAKE_TEST_POSTGRES_URL` points at a PostgreSQL server:
 
 ```bash
-# Run examples
-cargo run -p typedflake --example demo
-cargo run -p typedflake --example distributed
-cargo run -p typedflake --example override_defaults
-cargo run -p typedflake --example serde --features serde
+docker run -d --rm --name typedflake-test-pg -e POSTGRES_PASSWORD=postgres \
+    -p 127.0.0.1:54329:5432 postgres:17-alpine
+export TYPEDFLAKE_TEST_POSTGRES_URL=postgres://postgres:postgres@127.0.0.1:54329/postgres
 ```
 
-### Benchmarks
+UI tests (`tests/ui/`) pin compiler diagnostics for Rust 1.99. Regenerate them with `TRYBUILD=overwrite cargo test -p typedflake --test ui`, once without features and once with `--all-features`. Set `TYPEDFLAKE_SKIP_UI=1` to skip them on another compiler.
+
+### Examples and Benchmarks
 
 ```bash
-# Run performance benchmarks
-cargo bench -p typedflake
+cargo run -p typedflake --example demo
+cargo run -p typedflake --example typed_node
+cargo run -p typedflake --example serde --features serde
+cargo run -p typedflake --example waiting --features tokio
+
+cargo bench -p typedflake --bench performance
 ```
 
 ## Code Architecture
 
-TypedFlake is a Snowflake-style ID generator library built around a **newtype-driven design** where each ID type has its own independent generator state and configuration.
+Each ID is a newtype declared with `#[typedflake(...)]`. The attribute implements the `Id` trait; almost all logic lives in generic runtime code that reaches the type through that trait.
 
-For comprehensive guidance on the newtype pattern philosophy and best practices used throughout this codebase, see [`docs/newtype-philosophy.md`](docs/newtype-philosophy.md).
+### Runtime (`typedflake`)
 
-### Crate Architecture
+**`format.rs`** - The persistent format. `Epoch`, `BitLayout`, and `Format` are plain copyable data. `Format::validate` is a const fn; `Layout::resolve` turns a valid format into precomputed shifts and limits and panics on an invalid one. Because `Id::__LAYOUT` is a const, that panic is a compile error at the ID declaration.
 
-**`typedflake` (facade)** - Public API crate that users depend on. Re-exports all types from `typedflake-core` and the `TypedFlake` derive macro from `typedflake-macros`. Also re-exports `serde` as `__serde` for macro hygiene when the serde feature is enabled.
+**`node.rs`** - The `Node` trait. `u32` is the plain node and the only integer one, which lets `init(17)` infer its type. `TypedNode` structs implement it with a fixed width. Nodes are validated when consumed, never truncated.
 
-**`typedflake-core` (runtime)** - Contains all runtime types and logic. No dependency on the proc macro crate.
+**`id.rs`** - The `Id` trait with the pure operations (`parts`, `from_parts`, `unix_millis`) and the generation entry points as provided methods, the sealed `Repr` trait for `i64`/`u64`, and the single validation path (`from_u64`, `from_i64`, `parse`) used by every constructor and integration.
 
-**`typedflake-macros` (proc macro)** - Contains the `#[derive(TypedFlake)]` proc macro. Generates code referencing `::typedflake::` paths (the facade). Has a marker `serde` feature (no deps) that controls whether serde impls are generated.
+**`state.rs`** - `State` packs the last timestamp and sequence in one `AtomicU64` and advances them with compare-and-swap. The clock is read after each load of the state, so another thread's newer millisecond is not mistaken for a rollback. A registry keyed by ID type and packed node hands out one shared `State` per pair.
 
-### Dependency Graph
+**`generator.rs`** - `Generator<I>` holds an `Arc<State>` and the pre-shifted node. `generate` never waits; `generate_blocking` and `generate_async` retry sequence exhaustion only. `default_generator` resolves and caches the generator behind the static `Id::generate()`.
 
-```
-typedflake (facade)
-├── typedflake-core (runtime)
-│   ├── dashmap
-│   ├── derive_more
-│   └── serde (optional)
-├── typedflake-macros (proc macro)
-│   ├── proc-macro2
-│   ├── quote
-│   └── syn
-└── serde (optional, re-exported as __serde)
-```
+**`global.rs`** - `init` stores the default node as a typed value, so an ID can only use it when its node type matches.
 
-### Core Architecture
+**`clock.rs`** - Wall-clock access. In unit tests a thread-local mock freezes it; there is no public clock abstraction.
 
-**`typedflake-macros/src/lib.rs`** - The `#[derive(TypedFlake)]` proc macro is the primary API entry point. It generates distinct newtype functionality with inherent methods (no trait required). Each generated type maintains its own static `IdContext` using `OnceLock`, ensuring thread-safe per-type state isolation. The macro also generates a typed wrapper struct `<Name>Generator` for each ID type. Supports `#[typedflake(config = EXPR)]` for external config, or inline `#[typedflake(layout = (t,w,p,s), epoch = "YYYY-MM-DD")]` for one-off configuration.
+**`integrations/`** - Shared implementations for the integration derives, each behind its Cargo feature. They decode through the same validation as `TryFrom`.
 
-**`typedflake-core/src/config.rs`** - Provides compile-time configuration with three main types:
+### Macros (`typedflake-macros`)
 
-- `BitLayout`: Struct containing `timestamp`, `worker`, `process`, `sequence` bit allocations (must sum to 64). Includes `DEFAULT` preset and capacity calculation methods.
-- `Config`: Contains `BitLayout` and epoch timestamp. Pre-calculates shifts, masks, and limits for optimal bit manipulation performance.
-- `ValidationError` and `BitLayoutError`: Error types for configuration validation.
+Macros only parse, validate syntax, and forward to the runtime through `::typedflake::__private`. Business logic stays in the runtime. The crate path is found with `proc-macro-crate`, so a renamed dependency works.
 
-**`typedflake-core/src/context.rs`** - Manages ID type context with three responsibilities:
+Marker features (`serde`, `sqlx-postgres`, `postgres`, `tokio`) mirror the runtime's features and decide what the macros emit. A derive used without its feature produces a clear error.
 
-- Holds the `Config` for an ID type
-- Owns a `StatePool` that lazily initializes atomic states on-demand for (worker_id, process_id) instances
-- Provides a default generator via lazy `OnceLock` initialization
-- Factory methods: `create_generator()`, `create_worker()`, `create_process()`
+### Key Design Rules
 
-**`typedflake-core/src/state.rs`** - State management with two key types:
-
-- `State`: Atomic state for a single (worker_id, process_id) instance. Uses packed u64 for timestamp + sequence.
-- `StatePool`: DashMap-based lazy state pool that creates states on-demand. Uses mathematical key packing `(worker_id << process_bits) | process_id` for O(1) lock-free concurrent access.
-
-**`typedflake-core/src/generator.rs`** - Core ID generation logic:
-
-- `Generator`: Bound to specific worker_id and process_id with pre-injected `Arc<State>`
-- Zero-lookup ID generation using compare-and-swap operations on packed atomic state
-- Provides both `generate()` (blocks) and `generate_internal()` (returns error on exhaustion)
-- Component extraction and composition methods using pre-calculated config masks/shifts
-
-**`typedflake-core/src/global.rs`** - Global configuration management using `OnceLock`:
-
-- `defaults()` returns a `DefaultsBuilder` with `.config()`, `.instance()`, and `.init()` methods for one-time initialization
-- `get_default_config()` and `get_default_instance()` with fallback to hardcoded defaults (internal API)
-
-### Key Design Patterns
-
-**Newtype Isolation**: Each `#[derive(TypedFlake)] struct TypeName(u64)` creates a completely independent type with its own `IdContext`. `UserId` and `OrderId` can never interfere with each other.
-
-**Zero-Cost Abstractions**: Bit operations use pre-calculated shifts and masks stored in the `Config` struct, avoiding runtime calculations.
-
-**No Trait Required**: All methods are inherent methods - users never need to import traits.
-
-**Lazy State Initialization**: `StatePool` uses DashMap for on-demand state creation with mathematical key packing, providing lock-free concurrent access with minimal memory footprint.
-
-**Packed Atomic State**: Each `State` uses a single `AtomicU64` packing both timestamp and sequence for efficient compare-and-swap operations.
-
-### Derive Macro API
-
-The `#[derive(TypedFlake)]` macro generates types that:
-
-- Provide all methods as inherent methods (no trait imports needed)
-- Include standard traits: `Debug`, `Clone`, `Copy`, `PartialEq`, `Eq`, `Hash`, `PartialOrd`, `Ord`
-- Provide conversion methods: `as_u64()`, `from_u64_unchecked()`, `try_from_u64()`, `From<Name> for u64`, `TryFrom<u64>`
-- Support string parsing via `FromStr` and `Display`
-- Maintain independent static `IdContext` per type
-- Factory methods: `instance()`, `worker()`, `process()` returning typed `<Name>Generator`
-- Static methods: `generate()`, `compose()`, `compose_unchecked()`, `compose_custom()`, `compose_custom_unchecked()`
-- Instance methods: `decompose()`, `components()`, `timestamp()`, `worker_id()`, `process_id()`, `sequence()`
-- Conditional serde support: `Serialize`/`Deserialize` when the `serde` feature is enabled
-
-### Thread Safety Model
-
-- Each generated ID type has its own `IdContext` with `StatePool`
-- `StatePool` lazily initializes states on first access using DashMap's lock-free concurrent HashMap
-- Per-(worker_id, process_id) atomic state using compare-and-swap operations
-- `Generator` provides lock-free ID generation with pre-injected `Arc<State>`
-- No shared global state between different ID types or instances
-
-### API Philosophy
-
-The library prioritizes **real-world usage patterns** over theoretical abstractions:
-
-- **Zero imports**: `#[derive(TypedFlake)] pub struct UserId(u64);` then `UserId::generate()` works immediately
-- **Type safety**: `UserId` and `OrderId` are distinct types that cannot be mixed
-- **Extensible**: Users can freely add their own derives and attributes alongside `TypedFlake`
-- **Performance**: Direct method calls with no trait dispatch overhead, lock-free concurrent access
-- **Simplicity**: Inherent methods eliminate the need for trait knowledge
-- Backward compatibility is not a priority, as the project is in early experimental development
+- **No unchecked constructors.** Every path into an ID validates sign and reserved bits.
+- **Format belongs to the ID type.** Deployment only selects a node.
+- **One state per ID type and node.** No public path creates a second, uncoordinated one.
+- **Pure operations stay pure.** Parsing, conversion, and decomposition never touch globals or the clock.
+- **Inherent methods.** Users never need to import a trait; `Id` exists for generic code.
+- Backward compatibility is not a priority, as the project is in early experimental development.
 
 ## Code Style
 

@@ -1,312 +1,279 @@
 # TypedFlake
 
-**Distributed, type-safe Snowflake ID generation for Rust.**
+[![Crates.io](https://img.shields.io/crates/v/typedflake.svg)](https://crates.io/crates/typedflake)
+[![Documentation](https://docs.rs/typedflake/badge.svg)](https://docs.rs/typedflake)
 
-Generate unique, time-ordered 64-bit IDs across distributed systems without coordination. Inspired by Twitter's Snowflake algorithm, with strong type safety through Rust's newtype pattern.
+Snowflake-style IDs for Rust, where every kind of ID is its own type.
 
-## Features
+- **Distinct types.** `UserId` and `OrderId` cannot be mixed up, and each has its own generation state.
+- **Validated values.** Every way into an ID (integers, strings, JSON, database rows) applies the same checks. There is no unchecked constructor.
+- **Database-friendly.** IDs are `i64` by default and never negative, so they fit a `BIGINT` column as they are.
+- **Declarative formats.** Epoch and bit allocation are constants checked at compile time.
+- **Opt-in integrations.** Serde, SQLx (PostgreSQL), and `postgres-types` are separate derives behind Cargo features.
 
-- **🌍 Distributed**: Multi-server support via worker/process IDs
-- **🔒 Thread-safe**: Lock-free atomic operations using compare-and-swap
-- **⏱️ Time-ordered**: IDs are sortable by creation time
-- **🛡️ Type-safe**: Each ID type is distinct (no mixing `UserId` with `OrderId`)
-- **🎛️ Customizable**: Configure bit allocation and epoch per-type or globally
-- **💾 Shared state pool**: Generators share lazy state per (worker, process) pair
-- **📦 Serde support**: Optional JSON serialization as strings ([IEEE 754](https://en.wikipedia.org/wiki/Double-precision_floating-point_format) safe)
+## Quick start
 
-## Quick Start
-
-```rust
-use typedflake::TypedFlake;
-
-#[derive(TypedFlake)]
-pub struct UserId(u64);
-
-#[derive(TypedFlake)]
-pub struct OrderId(u64);
-
-fn main() {
-    // Generate IDs (thread-safe)
-    let user_id = UserId::generate();
-    let order_id = OrderId::generate();
-
-    println!("Order: {order_id}");
-    println!("User: {user_id}");
-
-    // Access components by tuple
-    let (timestamp, worker_id, process_id, sequence) = user_id.decompose();
-}
+```toml
+[dependencies]
+typedflake = "0.2"
 ```
 
----
-
-## Basic Generation
-
-Generate IDs using the default instance (worker=0, process=0):
-
 ```rust
-use typedflake::TypedFlake;
+use typedflake::typedflake;
 
-#[derive(TypedFlake)]
-pub struct UserId(u64);
+#[typedflake(epoch = "2025-01-01")]
+pub struct UserId(i64);
 
-let id = UserId::generate();
-```
-
-**Multiple ID types are completely independent:**
-
-```rust
-use typedflake::TypedFlake;
-
-#[derive(TypedFlake)]
-pub struct UserId(u64);
-
-#[derive(TypedFlake)]
-pub struct OrderId(u64);
-
-let user_id = UserId::generate();
-let order_id = OrderId::generate();
-
-// ✅ Type-safe: These cannot be accidentally mixed
-fn process_user(id: UserId) { }
-process_user(order_id); // ❌ Compile error!
-```
-
-## Instance-Based Generation
-
-Create generators bound to specific worker/process IDs for distributed systems:
-
-```rust
-use typedflake::TypedFlake;
-
-#[derive(TypedFlake)]
-pub struct UserId(u64);
-
-// Server-based: worker ID represents physical/virtual server
-let server_15 = UserId::worker(15)?;
-let id = server_15.generate();
-
-// Process-based: process ID for multi-process applications
-let process_7 = UserId::process(7)?;
-let id = process_7.generate();
-
-// Full control: assign both worker and process IDs
-// Example: worker=region, process=datacenter
-let us_east_dc2 = UserId::instance(31, 15)?;
-let id = us_east_dc2.generate();
-```
-
-> [!NOTE]
-> **State Sharing**: Generator instances for the same (worker_id, process_id) pair share the same underlying atomic state. This makes it safe and efficient to create multiple generators for the same IDs across different threads or contexts—they coordinate through shared state without duplication.
-
-> [!TIP]
-> For containerized deployments (Kubernetes, Docker), use [**Global Defaults**](#global-defaults) to configure worker/process IDs from environment variables. This eliminates the need to pass IDs throughout your application.
-
-## Configuration
-
-### Inline Attributes
-
-Configure epoch and/or bit layout directly on the type:
-
-```rust
-use typedflake::TypedFlake;
-
-// Custom epoch only (uses default 42|5|5|12 layout)
-#[derive(TypedFlake)]
-#[typedflake(epoch = "2025-09-13")]
-pub struct UserId(u64);
-
-// Custom layout only (uses default epoch)
-#[derive(TypedFlake)]
-#[typedflake(layout = (42, 8, 4, 10))]
-pub struct OrderId(u64);
-
-// Both layout and epoch
-#[derive(TypedFlake)]
-#[typedflake(layout = (42, 8, 4, 10), epoch = "2025-09-13")]
-pub struct SessionId(u64);
-
-// Epoch from milliseconds
-#[derive(TypedFlake)]
-#[typedflake(epoch = 1600000000000)]
-pub struct LegacyId(u64);
-```
-
-### Custom Configuration via Const
-
-For shared configs used across multiple types:
-
-```rust
-use typedflake::{TypedFlake, BitLayout, Config, Epoch};
-
-const CUSTOM_CONFIG: Config = Config::new(
-    BitLayout::new(42, 5, 5, 12),     // timestamp, worker, process, sequence
-    Epoch::from_date(2025, 9, 13)     // Custom epoch date
-);
-
-#[derive(TypedFlake)]
-#[typedflake(config = CUSTOM_CONFIG)]
-pub struct CustomId(u64);
-```
-
-### Choosing an Epoch
-
-**Recommended for new projects:** Set your epoch near to your project's launch date.
-
-```rust
-use typedflake::TypedFlake;
-
-// Recommended: Set epoch near to your actual launch date
-#[derive(TypedFlake)]
-#[typedflake(epoch = "2025-09-13")]
-pub struct MyId(u64);
-```
-
-**Why this matters:**
-
-- ✅ Maximizes your timestamp lifespan starting from when you actually need it
-- ✅ Keeps timestamp values smaller during your project's early years
-- ✅ Aligns IDs with your project timeline
-
-> [!CAUTION]
-> Only change your epoch if you're absolutely certain no IDs have been generated in production yet. Otherwise, keep your current epoch—compatibility with existing IDs is more important than reclaiming unused years.
-
-## Global Defaults
-
-In distributed systems (microservices, Kubernetes, multi-region), each service instance typically has the same worker/process ID throughout its lifecycle. Global defaults eliminate the need to pass these IDs around—set them once at startup, then use the simple `generate()` API everywhere.
-
-> [!IMPORTANT]
-> Global defaults should be set **once at application startup** before generating any IDs. They cannot be changed after initialization.
-
-**Without global defaults** - must create instances:
-
-```rust
-let generator = UserId::instance(worker_id, process_id)?;
-let id = generator.generate(); // Repeat for every service
-```
-
-**With global defaults** - set once, use everywhere:
-
-```rust
-use typedflake::{Config, TypedFlake};
-
-#[derive(TypedFlake)]
-pub struct UserId(u64);
-
-#[derive(TypedFlake)]
-pub struct OrderId(u64);
+#[typedflake(epoch = "2025-01-01")]
+pub struct OrderId(i64);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Read from environment (Kubernetes, Docker, etc.)
-    let worker_id = std::env::var("POD_ORDINAL").unwrap_or("0".into()).parse()?;
-    let process_id = std::env::var("CONTAINER_ID").unwrap_or("0".into()).parse()?;
+    // Once, during application startup.
+    typedflake::init(17)?;
 
-    // Set defaults once at startup
-    typedflake::defaults()
-        .config(Config::DEFAULT)
-        .instance(worker_id, process_id)
-        .init()?;
+    // Anywhere in the application.
+    let user_id = UserId::generate()?;
+    let order_id = OrderId::generate()?;
 
-    // Simple API throughout your application
-    let user_id = UserId::generate();   // Uses defaults
-    let order_id = OrderId::generate(); // Uses defaults
+    println!("{user_id} {order_id}");
     Ok(())
 }
 ```
 
-## Component Access
+`17` is this process's **node**: a number that must be unique among the running processes that generate the same ID types. TypedFlake does not assign nodes; take them from your deployment (a replica index, a configured value, a lease).
+
+## Declaring IDs
+
+`#[typedflake(...)]` goes on a tuple struct with one private `i64` or `u64` field, above any `#[derive]`. It implements `Debug`, `Display`, `FromStr`, `Clone`, `Copy`, equality, ordering, and hashing, so those must not be derived again. Other derives and attributes are fine.
+
+An ID packs three fields, from most to least significant:
+
+```text
+[ timestamp ][ node ][ sequence ]
+```
+
+- **timestamp**: milliseconds since the epoch you choose.
+- **node**: which process generated the ID.
+- **sequence**: a counter within one millisecond.
+
+### Epoch
+
+The epoch is required and is part of the stored format: changing it changes the meaning of every existing ID. Pick a date shortly before your first ID and never change it.
 
 ```rust
-use typedflake::TypedFlake;
+use typedflake::typedflake;
 
-#[derive(TypedFlake)]
-pub struct UserId(u64);
-
-let id = UserId::generate();
-
-// Decompose to tuple
-let (timestamp, worker_id, process_id, sequence) = id.decompose();
-
-// Components struct
-let components = id.components();
-println!("{}", components.timestamp);
-
-// Individual accessors
-let timestamp = id.timestamp();
-let worker = id.worker_id();
-let process = id.process_id();
-let sequence = id.sequence();
+#[typedflake(epoch = "2025-01-01")]
+pub struct UserId(i64);
 ```
 
-## Composition & Conversions
+The string is a `YYYY-MM-DD` date at midnight UTC. For any other instant, use a shared format with `Epoch::new(unix_millis)`.
 
-### Compose IDs from Components
+### Bits
+
+Without `bits`, an ID has 10 node bits (1024 nodes), 12 sequence bits (4096 IDs per millisecond per node), and the rest for the timestamp.
+
+| Integer | Timestamp bits | Lasts | Range |
+| --- | --- | --- | --- |
+| `i64` | 41 | about 69.7 years | `0..=i64::MAX` |
+| `u64` | 42 | about 139.4 years | `0..=u64::MAX` |
+
+Prefer `i64` unless you need the extra bit: most databases only have signed 64-bit integers.
+
+To choose the widths yourself, give all three:
 
 ```rust
-use typedflake::TypedFlake;
+use typedflake::typedflake;
 
-#[derive(TypedFlake)]
-pub struct UserId(u64);
-
-// Compose with default worker/process (validated)
-let id = UserId::compose(1234567890, 42)?;
-
-// Compose with all components (validated)
-let id = UserId::compose_custom(1234567890, 15, 7, 42)?;
-
-// Unchecked variants (masks overflow, better performance)
-let id = UserId::compose_unchecked(1234567890, 42);
-let id = UserId::compose_custom_unchecked(1234567890, 15, 7, 42);
+#[typedflake(
+    epoch = "2025-01-01",
+    bits(timestamp = 43, node = 8, sequence = 12),
+)]
+pub struct EventId(i64);
 ```
 
-### u64 Conversions
+Timestamp and sequence need at least one bit; node may have zero. The total may be less than the integer holds, which gives smaller numbers in exchange for capacity. The unused upper bits are reserved: an ID with any of them set is rejected.
+
+### Shared formats
+
+Several ID types can share one format constant:
 
 ```rust
-let id = UserId::generate();
+use typedflake::{BitLayout, Epoch, Format, typedflake};
 
-// To u64
-let raw: u64 = id.as_u64();
-let raw: u64 = id.into();
+pub const APP_IDS: Format = Format {
+    epoch: Epoch::from_date(2025, 1, 1),
+    bits: BitLayout {
+        timestamp: 41,
+        node: 10,
+        sequence: 12,
+    },
+};
 
-// From u64 (validated - use for external data)
-let id = UserId::try_from_u64(raw)?;
-let id: UserId = raw.try_into()?;
+#[typedflake(format = APP_IDS)]
+pub struct UserId(i64);
 
-// From u64 (unchecked - use for trusted sources)
-let id = UserId::from_u64_unchecked(raw);
+#[typedflake(format = APP_IDS)]
+pub struct OrderId(i64);
 ```
 
-### String Conversions
+Formats are validated when an ID type uses them. An invalid one, such as 64 bits for an `i64`, is a compile error at the declaration.
+
+## Nodes
+
+A node is either a plain number or a struct that splits the node bits into named fields.
 
 ```rust
-let id = UserId::generate();
+use typedflake::{TypedNode, typedflake};
 
-// To string
-let s = id.to_string();
-println!("ID: {s}");
+#[derive(Debug, Clone, Copy, TypedNode)]
+pub struct AppNode {
+    #[node(bits = 5)]
+    pub worker: u8,
+    #[node(bits = 5)]
+    pub process: u8,
+}
 
-// From string
-let parsed: UserId = s.parse()?;
-assert_eq!(id, parsed);
+#[typedflake(epoch = "2025-01-01", node = AppNode)]
+pub struct UserId(i64);
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    typedflake::init(AppNode {
+        worker: 17,
+        process: 1,
+    })?;
+
+    let id = UserId::generate()?;
+    assert_eq!(id.parts().node.worker, 17);
+    Ok(())
+}
 ```
 
-### JSON Serialization (Serde)
+Fields are `u8`, `u16`, or `u32`, pack in declaration order (most significant first), and must add up to the format's node bits. Their order is part of the stored format.
 
-Enable the `serde` feature for JSON serialization:
+Node values are checked when they are used: a number or field too large for its bits is an error, never truncated.
 
-```toml
-[dependencies]
-typedflake = { version = "0.1", features = ["serde"] }
+## Generating IDs
+
+### The default node
+
+`typedflake::init(node)` installs the node used by every `Id::generate()` call. Call it once at startup; a second call returns `InitError::AlreadyInitialized`, and generating before it returns `GenerateError::NotInitialized`.
+
+One default serves all ID types with the same kind of node. An ID declared with a different node type reports a mismatch instead of silently using it; give that ID an explicit generator.
+
+In tests, where many tests share a process, ignore the repeat error: `let _ = typedflake::init(0);`.
+
+### Explicit generators
+
+A generator is bound to one node and needs no global initialization:
+
+```rust
+use typedflake::typedflake;
+
+#[typedflake(epoch = "2025-01-01")]
+pub struct UserId(i64);
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let generator = UserId::generator(17)?;
+
+    let first = generator.generate()?;
+    let second = generator.clone().generate()?;
+    assert!(first < second);
+    Ok(())
+}
 ```
 
-IDs serialize as **strings** (not numbers) for safe cross-language compatibility:
+Generators for the same ID type and node always share their state, whether cloned, created again, or reached through `UserId::generate()`. There is no way to get two that could issue the same ID.
+
+### Errors and waiting
+
+`generate()` never waits. It fails when:
+
+- the millisecond's sequence is used up (`SequenceExhausted`): retry on the next millisecond;
+- the clock is behind the last ID generated (`ClockRollback`): generation resumes by itself when the clock catches up;
+- the clock is before the epoch, or past what the timestamp bits can hold.
+
+To wait for sequence capacity instead of handling it:
+
+```rust
+use std::time::Duration;
+use typedflake::typedflake;
+
+#[typedflake(epoch = "2025-01-01")]
+pub struct UserId(i64);
+
+async fn create_ids() -> Result<(), Box<dyn std::error::Error>> {
+    // Blocking, with a time budget.
+    let id = UserId::generate_blocking(Duration::from_millis(20))?;
+
+    // On a Tokio timer (feature `tokio`). Bound it with `tokio::time::timeout`.
+    let id = UserId::generate_async().await?;
+    Ok(())
+}
+```
+
+Both retry only sequence exhaustion. Generators have the same two methods.
+
+## Working with IDs
+
+```rust
+use typedflake::{Parts, typedflake};
+
+#[typedflake(epoch = "2025-01-01")]
+pub struct UserId(i64);
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let id = UserId::generator(17)?.generate()?;
+
+    // Integers.
+    let raw: i64 = id.get();
+    let raw: i64 = id.into();
+    let restored = UserId::try_from(raw)?;
+
+    // Decimal strings.
+    let text = id.to_string();
+    let parsed: UserId = text.parse()?;
+
+    // Parts.
+    let parts: Parts<u32> = id.parts();
+    println!("{} {} {}", parts.elapsed_millis, parts.node, parts.sequence);
+    let rebuilt = UserId::from_parts(parts)?;
+    let created_at: u64 = id.unix_millis()?;
+
+    assert!(restored == id && parsed == id && rebuilt == id);
+    Ok(())
+}
+```
+
+`TryFrom<i64>` and `TryFrom<u64>` exist for every ID and reject negative values and reserved bits. There is no `From<i64>`, no arithmetic, and no `Deref`: an ID is not a number you compute with.
+
+None of these operations touch the clock or need `init`.
+
+Every method is inherent, so nothing needs importing. For code generic over ID types, the same methods are on the `typedflake::Id` trait.
+
+## Integrations
+
+Each integration is a Cargo feature plus a derive on the IDs that want it.
+
+| Derive | Feature | Implements |
+| --- | --- | --- |
+| `typedflake::Serde` | `serde` | Serde `Serialize` and `Deserialize` |
+| `typedflake::SqlxPostgres` | `sqlx-postgres` | SQLx 0.8 `Type`, `Encode`, `Decode`, and arrays for PostgreSQL |
+| `typedflake::Postgres` | `postgres` | `postgres-types` 0.2 `ToSql` and `FromSql` |
+
+The `tokio` feature adds `generate_async`.
+
+Use these instead of the libraries' own derives: a derived `Deserialize` or `sqlx::Type` would build an ID from any integer and skip validation, so `#[typedflake]` rejects them.
+
+### Serde
 
 ```rust
 use serde::{Deserialize, Serialize};
-use typedflake::TypedFlake;
+use typedflake::typedflake;
 
-#[derive(TypedFlake)]
-pub struct UserId(u64);
+#[typedflake(epoch = "2025-01-01")]
+#[derive(typedflake::Serde)]
+pub struct UserId(i64);
 
 #[derive(Serialize, Deserialize)]
 struct User {
@@ -314,101 +281,122 @@ struct User {
     name: String,
 }
 
-let user = User {
-    id: UserId::generate(),
-    name: "Alice".to_string(),
-};
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let user = User {
+        id: UserId::try_from(9_007_199_254_740_993_i64)?,
+        name: "Alice".to_owned(),
+    };
+    assert_eq!(
+        serde_json::to_string(&user)?,
+        r#"{"id":"9007199254740993","name":"Alice"}"#
+    );
 
-let json = serde_json::to_string_pretty(&user)?;
-```
-
-**JSON output:**
-
-```json
-{
-  "id": "1234567890123456789",
-  "name": "Alice"
+    // Strings and integers are both accepted on input.
+    let user: User = serde_json::from_str(r#"{"id":42,"name":"Bob"}"#)?;
+    assert_eq!(user.id.get(), 42);
+    Ok(())
 }
 ```
 
-> [!TIP]
-> **Why strings?** JSON numbers are typically parsed as [IEEE 754 double-precision floats](https://en.wikipedia.org/wiki/Double-precision_floating-point_format), which safely represent integers up to 53 bits. Snowflake IDs are 64-bit, so values above `9_007_199_254_740_991` lose precision when parsed as numbers. String serialization ensures safe transmission across languages (JavaScript, Python, Java, Go, etc.) and web APIs without data loss.
+IDs are written as strings because JSON numbers lose precision above 2^53.
 
----
-
-## Architecture
-
-TypedFlake uses a **newtype-driven architecture** where each ID type maintains completely independent state:
-
-```
-┌─────────────────────────────────────────┐
-│ #[derive(TypedFlake)]                   │
-│ pub struct UserId(u64);                 │
-│                                         │
-│ ┌─────────────────────────────────────┐ │
-│ │ Static IdContext (OnceLock)         │ │
-│ │                                     │ │
-│ │ ┌─────────────┐  ┌───────────────┐  │ │
-│ │ │   Config    │  │  StatePool    │  │ │
-│ │ │ (BitLayout, │  │  (DashMap)    │  │ │
-│ │ │   Epoch)    │  │               │  │ │
-│ │ └─────────────┘  └───┬───────────┘  │ │
-│ │                      │              │ │
-│ │         ┌────────────┴────────┐     │ │
-│ │         │ Lazy State Creation │     │ │
-│ │         │ Arc<AtomicU64>      │     │ │
-│ │         │ (worker, process)   │     │ │
-│ │         └─────────────────────┘     │ │
-│ └─────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
-```
-
-**Key design:**
-
-- **Per-type isolation**: Each `#[derive(TypedFlake)] struct TypeName(u64)` creates a separate static context
-- **Lock-free generation**: Atomic compare-and-swap operations on packed u64 state
-- **Lazy allocation**: States created on-demand per (worker, process) pair using DashMap and shared across all generators for that pair
-
-## ID Structure
-
-A TypedFlake ID is a 64-bit integer divided into four components:
-
-| Component      | Bits | Range                 | Description              |
-| -------------- | ---- | --------------------- | ------------------------ |
-| **Timestamp**  | 42   | 0 - 4,398,046,511,103 | Milliseconds since epoch |
-| **Worker ID**  | 5    | 0 - 31                | Worker identifier        |
-| **Process ID** | 5    | 0 - 31                | Process identifier       |
-| **Sequence**   | 12   | 0 - 4,095             | IDs/ms (per instance)    |
-
-**Default**: `42t|5w|5p|12s` = 139 years, 1024 instances, 4096 IDs/ms per instance
-
-**Total system capacity** scales with instances: 1024 instances × 4096 IDs/ms = 4,194,304 IDs/ms
-
-**Bit allocation is fully customizable:**
+### SQLx
 
 ```rust
-BitLayout::new(42, 4, 4, 14);  // High-throughput: 16,384 IDs/ms per instance
-BitLayout::new(45, 4, 5, 10);  // Long-lived: ~1,115 years
+use typedflake::typedflake;
+
+#[typedflake(epoch = "2025-01-01")]
+#[derive(typedflake::SqlxPostgres)]
+pub struct UserId(i64);
+
+#[derive(sqlx::FromRow)]
+struct User {
+    id: UserId,
+    name: String,
+}
+
+async fn create_user(pool: &sqlx::PgPool, name: &str) -> Result<User, Box<dyn std::error::Error>> {
+    let id = UserId::generate()?;
+
+    sqlx::query("INSERT INTO users (id, name) VALUES ($1, $2)")
+        .bind(id)
+        .bind(name)
+        .execute(pool)
+        .await?;
+
+    let user = sqlx::query_as("SELECT id, name FROM users WHERE id = $1")
+        .bind(id)
+        .fetch_one(pool)
+        .await?;
+    Ok(user)
+}
 ```
 
----
+IDs are stored as `BIGINT`. Reading a row validates the value, so a negative or out-of-range number in the column is a decode error. SQLx's compile-time `query!` macros need their usual type override (`id AS "id: UserId"`).
+
+### postgres-types
+
+```rust
+use typedflake::typedflake;
+
+#[typedflake(epoch = "2025-01-01")]
+#[derive(typedflake::Postgres)]
+pub struct UserId(i64);
+
+async fn create_user(
+    client: &tokio_postgres::Client,
+    name: &str,
+) -> Result<UserId, Box<dyn std::error::Error>> {
+    let id = UserId::generate()?;
+
+    client
+        .execute("INSERT INTO users (id, name) VALUES ($1, $2)", &[&id, &name])
+        .await?;
+
+    let row = client
+        .query_one("SELECT id FROM users WHERE id = $1", &[&id])
+        .await?;
+    Ok(row.try_get("id")?)
+}
+```
+
+This works with `tokio-postgres` and the synchronous `postgres` client.
+
+Both database derives support `i64` IDs only. A `u64` ID has no PostgreSQL integer that holds all its values; convert it yourself if you need to store one.
+
+[`examples/axum-sqlx`](examples/axum-sqlx) is a small HTTP service that uses Serde and SQLx together.
+
+## What is and is not guaranteed
+
+- **Uniqueness needs unique nodes.** Two processes generating the same ID type with the same node can produce the same ID.
+- **Uniqueness does not survive a clock that goes backwards across a restart.** State is in memory: within a process a rollback is detected and reported, but a restarted process cannot know the clock was once ahead.
+- **Different ID types can have equal numbers.** The type is not encoded in the value.
+- **Ordering is approximate.** IDs from one node increase over time. IDs from different nodes are ordered by millisecond, then by node.
+- **A valid ID is not proof of anything.** Parsing checks the format, not that the ID was ever generated or exists in your database.
+
+## Migrating from 0.1
+
+0.2 replaces `#[derive(TypedFlake)]` and `id!` with `#[typedflake]`, and the worker/process pair with a single node. See [`MIGRATION.md`](MIGRATION.md) for the API changes and for declarations that keep reading existing 0.1 IDs.
 
 ## Performance
 
-TypedFlake is designed for high-throughput scenarios:
+Measured with `cargo bench -p typedflake` on an AMD Ryzen 7 5700G with Rust 1.99. Treat them as orders of magnitude, not promises.
 
-- **Lock-free**: Atomic compare-and-swap operations with no mutexes
-- **Zero allocations**: ID generation doesn't allocate memory
-- **Cache-friendly**: Packed atomic state with cache-line alignment
-- **Lazy initialization**: Only allocates state for actively-used instances
+| Operation | Time |
+| --- | --- |
+| `UserId::generate()` | 38 ns |
+| `generator.generate()` | 38 ns |
+| `generator.generate()`, 4 threads sharing one node | 63 ns |
+| `try_from(i64)` | under 1 ns |
+| `parts()` / `from_parts()` | about 1 ns |
+| `to_string()` | 25 ns |
+| `parse()` | 12 ns |
 
-Run benchmarks:
+Generation is one clock read and one atomic compare-and-swap, with no allocation or lookup per ID. The default layout caps a node at 4096 IDs per millisecond for each ID type, which is far below what the CPU can produce: under sustained load the limit you meet is the sequence, not the generator.
 
-```bash
-cargo bench
-```
+## Minimum supported Rust version
 
----
+Rust 1.99.
 
 ## License
 

@@ -1,10 +1,10 @@
 # TypedFlake redesign proposal
 
-**Status:** Draft — public syntax refined; implementation has not started.
+**Status:** Implemented in 0.2.0. Section 8 records where the implementation
+departs from the text below, and why.
 
-This document describes the intended design, not the current implementation.
-All Rust examples describe the target interface, not currently available features.
-Accepted choices and remaining implementation decisions are recorded below.
+This document is the design record for the 0.2 interface. `README.md` and the
+API documentation describe how to use it; `MIGRATION.md` covers upgrading.
 
 ### How to read this document
 
@@ -356,10 +356,18 @@ pub trait Node: Copy + Send + Sync + 'static {
     fn unpack(raw: u64, bits: u8) -> Self;
 }
 
-pub trait Id: Copy + 'static {
-    type Repr;
+/// Sealed: implemented for `i64` and `u64` only.
+pub trait Repr: Copy + /* ... */ 'static {}
+
+pub trait Id: Copy + Send + Sync + 'static {
+    type Repr: Repr;
     type Node: Node;
     const FORMAT: Format;
+
+    fn get(self) -> Self::Repr;
+
+    // Provided: generate, generate_blocking, generate_async, generator,
+    // parts, from_parts, unix_millis.
 }
 
 pub fn init<N: Node>(node: N) -> Result<(), InitError>;
@@ -371,9 +379,12 @@ pub fn init<N: Node>(node: N) -> Result<(), InitError>;
 - `Id` is implemented only by `#[typedflake]`. Document it as not meant for manual
   implementation and keep engine hooks hidden. `Generator<I: Id>` and integration
   derives depend on this trait alone, so the derives never need to see the format.
-- The global default stores the node's `TypeId` together with its packed value.
-  Each ID type compares that against `TypeId::of::<Self::Node>()` when it first
-  resolves its default generator.
+- `Id` carries the public methods as provided methods, so generic code can call
+  them. The attribute also generates each one as an inherent method that forwards
+  to the trait, which is what keeps normal use free of trait imports.
+- The global default stores the node value itself, type-erased. An ID type gets
+  it back only by downcasting to its own node type, when it first resolves its
+  default generator.
 - `pack` validates without truncation. `unpack` is infallible because a decoded
   node field always fits its declared width.
 
@@ -429,6 +440,12 @@ mask overflow or silently advance a logical clock.
 A rollback error leaves the state untouched. Generation resumes on its own once
 the clock reaches the last issued timestamp. Waiting entry points do not retry
 rollback.
+
+Read the clock after loading the generation state, on every attempt of the
+compare-and-swap. A timestamp in the state was read from the clock before it was
+stored, so a later reading can only be behind it if the clock went backwards.
+Reading the clock once before the loop reports a false rollback whenever another
+thread stores a newer millisecond in between.
 
 Optional waiting entry points:
 
@@ -496,8 +513,9 @@ Pin this with fixed IDs in the 0.1.3 layout that must decode identically. The
 
 ## 4. Integrations
 
-Cargo features make integration dependencies and derives available. Each ID opts
-in using separate derives, never options inside `#[typedflake(...)]`:
+Cargo features enable the integrations. Each ID opts in using separate derives,
+never options inside `#[typedflake(...)]`. The derives are always exported, and
+one used without its feature is a compile error that names the feature:
 
 ```rust
 #[typedflake(format = APP_IDS)]
@@ -622,7 +640,7 @@ is recorded in this document and its examples rather than made silently.
 | --- | --- | --- |
 | Declaration macro | Attribute owns standard ID behavior; private non-generic newtypes initially | Selected |
 | Attribute order | `#[typedflake]` first, above derives; `Debug` as `Name(value)` | Accepted |
-| Underlying traits | `Node` and `Id` as sketched; `Id` implemented only by the macro | Accepted |
+| Underlying traits | `Node`, sealed `Repr`, and `Id` with provided methods; `Id` implemented only by the macro | Revised |
 | Simple node type | Plain `u32`, the only integer node; no `NodeId` wrapper | Accepted |
 | Typed node fields | Named `u8`/`u16`/`u32` fields, mandatory `bits`, at least one field | Accepted |
 | Epoch input | Inline `"YYYY-MM-DD"` UTC only; milliseconds; calendar-only const validation | Accepted |
@@ -638,11 +656,11 @@ is recorded in this document and its examples rather than made silently.
 | Node conversions | Typed generators take their declared node; raw typed-node escape hatch deferred | Selected |
 | Initialization | One default, explicit startup, repeat initialization errors | Selected |
 | Initialization in tests | Ignore `AlreadyInitialized` or use explicit generators; no test-only API | Accepted |
-| Clock behavior | Fail on rollback; retry only sequence exhaustion; recover without reset | Revised |
+| Clock behavior | Fail on rollback; retry only sequence exhaustion; recover without reset; read the clock after the state | Revised |
 | Waiting methods | Bounded sync wait and optional Tokio async wait without its own timeout | Revised |
 | Error taxonomy | Categories above as `#[non_exhaustive]` enums; exact fields fixed in tests | Revised |
 | State lifetime | Shared state lives for the process; no eviction | Accepted |
-| Integration syntax | Separate `Serde`, `SqlxPostgres`, and `Postgres` derives | Accepted |
+| Integration syntax | Separate `Serde`, `SqlxPostgres`, and `Postgres` derives; the libraries' own derives are rejected | Revised |
 | Database support | Signed PostgreSQL first; validated codecs and arrays | Selected |
 | Dependency policy | Target listed versions; independent features; no checks against older toolchains | Accepted |
 | Workspace | Two crates: merge `typedflake-core` into `typedflake`; keep macros separate | Accepted |
@@ -667,21 +685,21 @@ interface draft.
 - [x] Record public method contracts, input/output conversions, and feature names.
 - [x] Finalize underlying generic trait signatures and error payloads without changing
   the selected usage patterns.
-- [ ] Review examples for simple nodes, split nodes, SQL, and async generation.
+- [x] Review examples for simple nodes, split nodes, SQL, and async generation.
 - [x] Specify migration rules for already persisted IDs; never silently reinterpret them.
 
 **Acceptance:** examples form one consistent interface and required decisions are
-recorded here. Runtime implementation has not started.
+recorded here.
 
 ### Phase 2 — Pure format and value model
 
-- [ ] Implement validated layout, epoch, representation, and node packing.
-- [ ] Implement raw/string conversions, parts, and checked absolute timestamps.
-- [ ] Test round trips and boundaries for signed and unsigned formats.
-- [ ] Test reduced-capacity formats and reserved high-bit rejection across raw inputs.
-- [ ] Pin 0.1.3-layout IDs as fixed values that decode identically under both
+- [x] Implement validated layout, epoch, representation, and node packing.
+- [x] Implement raw/string conversions, parts, and checked absolute timestamps.
+- [x] Test round trips and boundaries for signed and unsigned formats.
+- [x] Test reduced-capacity formats and reserved high-bit rejection across raw inputs.
+- [x] Pin 0.1.3-layout IDs as fixed values that decode identically under both
   legacy-compatible declarations.
-- [ ] Add property tests, including extreme legal widths and reserved sign bits;
+- [x] Add property tests, including extreme legal widths and reserved sign bits;
   keep these robustness cases out of the introductory examples.
 
 **Acceptance:** pure operations need no globals or clock; invalid values fail
@@ -689,11 +707,11 @@ consistently; no unchecked shifts, casts, or truncation violate the format.
 
 ### Phase 3 — Coordinated generation
 
-- [ ] Implement the clock seam, checked timestamp transitions, and atomic engine.
-- [ ] Implement shared per-type/node state and cloned generator handles.
-- [ ] Implement explicit defaults and the cached static generation path.
-- [ ] Cover rollback, frozen clocks, epoch boundaries, exhaustion, and concurrency.
-- [ ] Test global initialization in isolated processes where necessary.
+- [x] Implement the clock seam, checked timestamp transitions, and atomic engine.
+- [x] Implement shared per-type/node state and cloned generator handles.
+- [x] Implement explicit defaults and the cached static generation path.
+- [x] Cover rollback, frozen clocks, epoch boundaries, exhaustion, and concurrency.
+- [x] Test global initialization in isolated processes where necessary.
 
 **Acceptance:** static and explicit handles coordinate; timestamp exhaustion cannot
 wrap; no public path creates duplicate independent state for the same type/node.
@@ -701,13 +719,13 @@ Use deterministic clock tests and model checking where practical, not sleeps alo
 
 ### Phase 4 — Declaration macros
 
-- [ ] Implement the chosen ID and node declaration syntax.
-- [ ] Support renamed dependencies and robust paths in generated code.
-- [ ] Add compile-pass/fail tests for declarations, attributes, and diagnostics.
-- [ ] Add a compile-pass test that `init(17)` and `Id::generator(17)` infer `u32`.
-- [ ] Cover shared `Format`/`BitLayout` constants, inline `bits(...)`, conflicting
+- [x] Implement the chosen ID and node declaration syntax.
+- [x] Support renamed dependencies and robust paths in generated code.
+- [x] Add compile-pass/fail tests for declarations, attributes, and diagnostics.
+- [x] Add a compile-pass test that `init(17)` and `Id::generator(17)` infer `u32`.
+- [x] Cover shared `Format`/`BitLayout` constants, inline `bits(...)`, conflicting
   format overrides, and typed-node width mismatches.
-- [ ] Ensure repeated attributes, invalid dates, leftover tokens, and trait conflicts
+- [x] Ensure repeated attributes, invalid dates, leftover tokens, and trait conflicts
   are handled intentionally rather than silently ignored.
 
 **Acceptance:** the primary usage examples compile, including any recorded
@@ -716,27 +734,88 @@ stays in the runtime.
 
 ### Phase 5 — Integrations and waiting adapters
 
-- [ ] Implement opt-in Serde, SQLx/PostgreSQL, and postgres-types support.
-- [ ] Test separate integration derives, missing features, and unsupported representations.
-- [ ] Test actual database round trips, negative inputs, reserved bits, limits, and arrays.
-- [ ] Implement and test bounded blocking waits and optional Tokio waits.
-- [ ] Verify cancellation, timeouts, and no blocking sleep on async paths.
+- [x] Implement opt-in Serde, SQLx/PostgreSQL, and postgres-types support.
+- [x] Test separate integration derives, missing features, and unsupported representations.
+- [x] Test actual database round trips, negative inputs, reserved bits, limits, and arrays.
+- [x] Implement and test bounded blocking waits and optional Tokio waits.
+- [x] Verify cancellation, timeouts, and no blocking sleep on async paths.
 
 **Acceptance:** callers bind/read typed IDs without casts; decoders preserve
 invariants; every supported feature combination compiles independently.
 
 ### Phase 6 — Release and performance verification
 
-- [ ] Benchmark initialized hot paths, contention, rollover, and codecs.
-- [ ] Update README, examples, CHANGELOG, and migration documentation.
-- [ ] Remove `typedflake-core` from the workspace once the old interface is gone.
-- [ ] Set `rust-version = "1.99"` in the workspace manifest and declare versions for
+- [x] Benchmark initialized hot paths, contention, rollover, and codecs.
+- [x] Update README, examples, CHANGELOG, and migration documentation.
+- [x] Remove `typedflake-core` from the workspace once the old interface is gone.
+- [x] Set `rust-version = "1.99"` in the workspace manifest and declare versions for
   internal published dependencies.
-- [ ] Run formatting, Clippy, workspace tests, doctests, and example builds.
-- [ ] Verify packaging/publication and the documented feature matrix.
+- [x] Run formatting, Clippy, workspace tests, doctests, and example builds.
+- [x] Verify packaging/publication and the documented feature matrix.
 
 **Acceptance:** documented guarantees match tests, the package is publishable, and
 performance claims are backed by measurements rather than assumptions.
+
+## 8. Implementation notes
+
+Where the implementation differs from or adds to the text above. Each item was
+found while writing the code and is recorded here instead of changed silently.
+
+**Corrections**
+
+- **Clock read order.** Reading the clock once per call, before the
+  compare-and-swap loop, made concurrent callers report false rollbacks. The
+  clock is now read after every load of the state (section 3).
+- **Schema identity.** The default node is stored as the node value and matched
+  by downcast, not as a `TypeId` next to packed bits. It is the same check with
+  less to keep in sync, and the node is repacked per ID type anyway.
+
+**Additions**
+
+- **`Repr` trait.** `Id::Repr` is bounded by a sealed `Repr` trait for `i64` and
+  `u64`, so generic code can rely on the representation.
+- **Methods on `Id`.** The public methods are provided methods of `Id`, with
+  inherent forwards generated by the attribute. Generic code needs them on the
+  trait; everyday code needs them without an import.
+- **`Format::validate::<Repr, Node>()`.** The compile-time check is also a public
+  const fn, so a format can be validated without declaring an ID.
+- **`Generator::node()`.** Returns the node a generator was created for.
+- **Rejected derives.** `#[typedflake]` refuses `Serialize`, `Deserialize`,
+  `sqlx::Type`, `ToSql`, and `FromSql` derives on an ID and points at the
+  matching `typedflake` derive. Those derives would build an ID from any integer.
+- **Renamed dependencies.** Generated paths use `proc-macro-crate`, so a renamed
+  `typedflake` dependency needs no extra attribute.
+
+**Limits made explicit**
+
+- **Plain node width.** A `u32` node supports at most 32 node bits; a wider node
+  field with a plain node is a `FormatError`.
+- **Typed node width.** A `TypedNode` holds at most 62 bits, since an ID needs
+  one timestamp bit and one sequence bit.
+- **Epoch range.** Epochs start at 1970-01-01; they are unsigned milliseconds.
+- **First sequence at the epoch.** A fresh state is indistinguishable from
+  "sequence 0 issued at elapsed 0", so an ID generated in the epoch's own
+  millisecond starts at sequence 1. Storing an extra flag would cost a bit of the
+  packed state for a case that cannot occur after the epoch has passed.
+- **Serde and binary formats.** Integers are accepted only by self-describing
+  formats. A format that is not human-readable reads the string that was written.
+- **`GeneratorError`.** Only an invalid node can fail an explicit generator:
+  the node type is checked by the compiler and the format by the declaration.
+  A mismatched default node is `GenerateError::NodeSchemaMismatch`.
+
+**Not done**
+
+- **Model checking.** Phase 3 asks for it "where practical". Generation is
+  covered by deterministic clock tests, a deterministic interleaving test for the
+  clock read order, and multi-threaded uniqueness tests, but not by a model
+  checker such as `loom`.
+- **Diagnostics on other compilers.** Compile-fail expectations are pinned to
+  Rust 1.99 and skipped on newer toolchains in CI.
+
+**Changed alongside**
+
+- **Example application.** `examples/axum-sqlx` moved from SQLite to PostgreSQL,
+  the only database with an integration derive.
 
 ## Refinement process
 

@@ -7,7 +7,7 @@
 
 #[test]
 fn ui() {
-    if std::env::var_os("TYPEDFLAKE_SKIP_UI").is_some() {
+    if std::env::var_os("TYPEDFLAKE_SKIP_UI").is_some_and(|value| !value.is_empty()) {
         return;
     }
 

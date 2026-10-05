@@ -23,7 +23,7 @@ static DEFAULT: OnceLock<DefaultNode> = OnceLock::new();
 /// [`Id::generator`](crate::Id::generator) and all parsing, conversion, and
 /// inspection work without it.
 ///
-/// ```standalone_crate
+/// ```
 /// use typedflake::typedflake;
 ///
 /// #[typedflake(epoch = "2025-01-01")]

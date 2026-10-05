@@ -3,7 +3,7 @@
 //! Declare an ID type with [`#[typedflake]`](macro@typedflake), install a node
 //! once with [`init`], and generate IDs anywhere:
 //!
-//! ```standalone_crate
+//! ```
 //! use typedflake::typedflake;
 //!
 //! #[typedflake(epoch = "2025-01-01")]
@@ -83,3 +83,19 @@ pub mod __private {
     #[cfg(feature = "sqlx-postgres")]
     pub use crate::integrations::sqlx_postgres;
 }
+
+/// Compiles the README's examples as doctests. They use every integration, so
+/// they only run with all features enabled.
+#[cfg(all(
+    doctest,
+    feature = "serde",
+    feature = "sqlx-postgres",
+    feature = "postgres",
+    feature = "tokio",
+))]
+#[doc = include_str!("../../README.md")]
+struct ReadmeDoctests;
+
+#[cfg(doctest)]
+#[doc = include_str!("../../MIGRATION.md")]
+struct MigrationDoctests;

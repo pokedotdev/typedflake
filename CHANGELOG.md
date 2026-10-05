@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 
+A redesign of the whole interface. See [MIGRATION.md](MIGRATION.md) for how to
+move from 0.1 and keep reading existing IDs.
+
+### Added
+
+- `#[typedflake(...)]` attribute for declaring ID types on `i64` or `u64` newtypes.
+- `i64` IDs, which are never negative and fit signed database columns.
+- Formats that use fewer bits than the integer holds; the unused upper bits are reserved and validated.
+- `Format` and `BitLayout` as plain struct constants, validated at compile time against each ID type.
+- `TypedNode` derive for splitting the node into named fields.
+- `typedflake::init(node)` for installing the default node once.
+- `Generator<Id>`, obtained from `Id::generator(node)`; generators for one ID type and node always share state.
+- `generate_blocking(timeout)` and, with the `tokio` feature, `generate_async()`.
+- `Parts`, `parts()`, `from_parts()`, and `unix_millis()` for inspecting and rebuilding IDs.
+- `TryFrom<i64>` and `TryFrom<u64>` for every ID type.
+- `Id` trait for code generic over ID types.
+- `typedflake::SqlxPostgres` derive (feature `sqlx-postgres`) for SQLx 0.8, including arrays.
+- `typedflake::Postgres` derive (feature `postgres`) for `postgres-types` 0.2.
+- Typed errors: `FormatError`, `NodeError`, `InitError`, `GeneratorError`, `GenerateError`, `InvalidId`, `ParseIdError`, `TimestampError`.
+
+### Changed
+
+- **Breaking:** `id!` and `#[derive(TypedFlake)]` are replaced by `#[typedflake(...)]`.
+- **Breaking:** the epoch is required; there is no default epoch.
+- **Breaking:** worker and process are replaced by a single node field.
+- **Breaking:** `generate()` returns a `Result` and never waits. Sequence exhaustion and clock rollback are errors.
+- **Breaking:** generating without `typedflake::init` is an error instead of using worker 0 and process 0.
+- **Breaking:** Serde support is the opt-in `typedflake::Serde` derive instead of automatic. IDs still serialize as strings; deserialization now also accepts integers.
+- **Breaking:** the minimum supported Rust version is 1.99.
+- A clock that moves backwards is reported, and generation resumes once it catches up.
+
+### Removed
+
+- **Breaking:** `Config`, the `TWITTER`, `DISCORD`, and `INSTAGRAM` presets, and the global configuration functions.
+- **Breaking:** unchecked constructors (`from_u64_unchecked`, `compose_unchecked`, `compose_custom_unchecked`).
+- **Breaking:** `as_u64`, `decompose`, `components`, `compose`, and the per-component accessors, replaced by `get`, `parts`, and `from_parts`.
+- **Breaking:** the per-type `<Name>Generator` structs and the `instance`, `worker`, and `process` constructors.
+
 ## [0.1.3](https://github.com/pokedotdev/typedflake/compare/v0.1.2...v0.1.3) - 2025-10-10
 
 ### Fixed
